@@ -16,3 +16,15 @@ php artisan migrate
 .env 設定(環境ファイル)  
 バリデーションの言語ファイル  
 デバッグバー  
+<br><br>
+
+
+# 9. 初期設定
+タイムゾーン、言語設定 config/app.php    
+'timexone' => 'Asia/Tokyo',  
+'locale' => 'ja',  
+デバッグバー composer require barryvdh/laravel-debugbar  
+
+うまくいかない時・・キャッシュのクリア  
+ php artisan config:clear   
+ php artisan cache:clear  
