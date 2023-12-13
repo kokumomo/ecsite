@@ -117,9 +117,85 @@ class Message
     }
 }
 ```
+
 ```php
 //サービスコンテナを使ったパターン  
 app()->bind('sample', Sample::class);  
 $sample = app()->make('sample');  
 $sample->run(); 
+```
+
+<br>
+
+# 36. サービスプロバイダ その１
+
+![img](public/img/service_provider.png)
+
+### サービスプロバイダの読み込み箇所
+```php
+illminate\Foundation\Application  
+
+registerConfiguredProviders(){
+    $providers = Collection::make($this->config['app.providers'];)
+}
+```
+
+routes/web.php
+```php
+Route::get('/serviceprovidertest', [LifeCycleTestController::class, 'showServiceProviderTest']);
+```
+
+app/Http/Controllers/LifeCycleTestController.php
+```php
+class LifeCycleTestController extends Controller
+{
+    public function showServiceProviderTest()
+    {
+        $encrypt = app()->make('encrypter');
+        $password = $encrypt->encrypt('password');
+        dd($password, $encrypt->decrypt($password));
+    }
+```
+
+<br>
+
+# 37. サービスプロバイダ その２
+
+php artisan make:provider SampleServiceProvider
+
+app/Providers/SampleServiceProvider.php
+```php
+class SampleServiceProvider extends ServiceProvider
+{
+    public function register(): void
+    {
+        app()->bind('serviceProviderTest', function(){
+            return 'サービスプロバイダのテスト';
+        });
+    }
+```
+
+config/app.php
+```php
+'providers' => ServiceProvider::defaultProviders()->merge([
+        App\Providers\AppServiceProvider::class,
+        App\Providers\AuthServiceProvider::class,
+        App\Providers\EventServiceProvider::class,
+        App\Providers\RouteServiceProvider::class,
+        
+        App\Providers\SampleServiceProvider::class,
+```
+
+app/Http/Controllers/LifeCycleTestController.php
+```php
+class LifeCycleTestController extends Controller
+{
+    public function showServiceProviderTest()
+    {
+        $encrypt = app()->make('encrypter');
+        $password = $encrypt->encrypt('password');
+        $sample = app()->make('serviceProviderTest');
+
+        dd($sample, $password, $encrypt->decrypt($password));
+    }
 ```
