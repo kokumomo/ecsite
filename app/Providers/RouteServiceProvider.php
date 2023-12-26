@@ -35,17 +35,17 @@ class RouteServiceProvider extends ServiceProvider
                 ->prefix('api')
                 ->group(base_path('routes/api.php'));
 
-            // Route::prefix('admin')
-            // ->as('admin.')
-            // ->middleware('web')
-            // ->namespace($this->namespace)
-            // ->group(base_path('routes/admin.php'));
+            Route::prefix('admin')
+            ->as('admin.')
+            ->middleware('web')
+            ->namespace($this->namespace)
+            ->group(base_path('routes/admin.php'));
 
-            // Route::prefix('owner')
-            // ->as('owner.')
-            // ->middleware('web')
-            // ->namespace($this->namespace)
-            // ->group(base_path('routes/owner.php'));
+            Route::prefix('owner')
+            ->as('owner.')
+            ->middleware('web')
+            ->namespace($this->namespace)
+            ->group(base_path('routes/owner.php'));
 
             // Route::middleware('web')
             //     ->group(base_path('routes/web.php'));
