@@ -1,201 +1,187 @@
-# 32. ライフサイクル
+# 42. ガード設定 config/auth.php
 
-### 全体の流れ
-WEBサーバがpublic/index.phpにリダイレクト  
-1. autolode読み込み  
-2. Applicationインスタンス作成
-3. HttpKernelインスタンス作成
-4. Requestインスタンス作成
-5. HttpKernelがリクエストを作成してResponse取得
-6. レスポンス送信
-7. terminate()で後片付け
+### 4. ガード設定
+Laravel標準の認証機能  
 
-### 1. autolode 読み込み  
-public/index.php
-```php
-require __DIR__.'/../vendor/autoload.php';  
-```
-
-### サービスコンテナ(Applicationインスタンス)
-```php
-$app = require_once __DIR__.'/../bootstrap/app.php';
-```
-bootstrap/app.php
-```php
-$app = new Illuminate\Foundation\Application(
-    $_ENV['APP_BASE_PATH'] ?? dirname(__DIR__)
-);
-```
-
-<br>
-
-# 33. サービスコンテナ
-
-![img](public/img/service_container.png)
-
-route/web.php  
-```php
-use App\Http\Controllers\LifeCycleTestController;
-
-Route::get('/servicecontainertest', [LifeCycleTestController::class, 'showServiceContainerTest']);
-```
-php artisan make:controller LifeCycleTestController
-
-app/Http/Controllers/LifeCycleTestController.php
-
+guards・・今回はsession  
+Providers・・今回はEloquent(モデル)  
+Passwordresetをそれぞれ設定  
 ```php
 <?php
+return [
+    'defaults' => [
+        'guard' => 'users',
+        'passwords' => 'users',
+    ],
+    
+    'guards' => [
+        'web' => [
+            'driver' => 'session',
+            'provider' => 'users',
+        ],
 
-namespace App\Http\Controllers;
+        'users' => [
+            'driver' => 'session',
+            'provider' => 'users',
+        ],
 
-use Illuminate\Http\Request;
+        'owners' => [
+            'driver' => 'session',
+            'provider' => 'owners',
+        ],
 
-class LifeCycleTestController extends Controller
-{
-    public function showServiceContainerTest()
-    {
-        dd(app());
-    }
-}
-```
+        'admin' => [
+            'driver' => 'session',
+            'provider' => 'admin',
+        ],
 
-### サービスコンテナに登録する
-```php
-//引数(取り出す時の名前、機能)  
-//Bindings:の数が65->66に増えている
-app()->bind('lifeCycleTest', function(){  
-    return 'ライフサイクルテスト';  
-});
+        'api' => [
+            'driver' => 'token',
+            'provider' => 'users',
+            'hash' => false,
+        ],
+    ],
 
-$test = app()->make('lifeCycleTest');
-dd($test, app());
-```
+    'providers' => [
+        'users' => [
+            'driver' => 'eloquent',
+            'model' => App\Models\User::class,
+        ],
 
-<br>
+        'owners' => [
+            'driver' => 'eloquent',
+            'model' => App\Models\Owner::class,
+        ],
 
-# 34. サービスコンテナ その２
+        'admin' => [
+            'driver' => 'eloquent',
+            'model' => App\Models\Admin::class,
+        ],
+    ],
 
-### 依存関係の解決
-
-```php
-
-class LifeCycleTestController extends Controller
-{
-    public function showServiceContainerTest()
-    {
-        app()->bind('lifeCycleTest', function(){  
-        return 'ライフサイクルテスト';  
-        });
-
-        $test = app()->make('lifeCycleTest');
-
-        // サービスコンテナなしのパターン
-        // 依存した2つのクラスはそれぞれインスタンス化後に実行するが、   
-        $message = new Message();
-        $sample = new Sample($message);
-        $sample->run();
-        dd($test, app());
-    }
-}
-
-class Sample
-{
-    public $message;
-    public function __construct(Message $message){
-        $this->message = $message;
-    }
-    public function run(){
-        $this->message->send();
-    }
-}
-
-// メッセージを表示するだけのクラス
-class Message
-{
-    public function send(){
-        echo('メッセージ表示');
-    }
-}
-```
-
-```php
-//サービスコンテナを使ったパターン  
-app()->bind('sample', Sample::class);  
-$sample = app()->make('sample');  
-$sample->run(); 
-```
-
-<br>
-
-# 36. サービスプロバイダ その１
-
-![img](public/img/service_provider.png)
-
-### サービスプロバイダの読み込み箇所
-```php
-illminate\Foundation\Application  
-
-registerConfiguredProviders(){
-    $providers = Collection::make($this->config['app.providers'];)
-}
-```
-
-routes/web.php
-```php
-Route::get('/serviceprovidertest', [LifeCycleTestController::class, 'showServiceProviderTest']);
-```
-
-app/Http/Controllers/LifeCycleTestController.php
-```php
-class LifeCycleTestController extends Controller
-{
-    public function showServiceProviderTest()
-    {
-        $encrypt = app()->make('encrypter');
-        $password = $encrypt->encrypt('password');
-        dd($password, $encrypt->decrypt($password));
-    }
-```
-
-<br>
-
-# 37. サービスプロバイダ その２
-
-php artisan make:provider SampleServiceProvider
-
-app/Providers/SampleServiceProvider.php
-```php
-class SampleServiceProvider extends ServiceProvider
-{
-    public function register(): void
-    {
-        app()->bind('serviceProviderTest', function(){
-            return 'サービスプロバイダのテスト';
-        });
-    }
-```
-
-config/app.php
-```php
-'providers' => ServiceProvider::defaultProviders()->merge([
-        App\Providers\AppServiceProvider::class,
-        App\Providers\AuthServiceProvider::class,
-        App\Providers\EventServiceProvider::class,
-        App\Providers\RouteServiceProvider::class,
+    'passwords' => [
+        'users' => [
+            'provider' => 'users',
+            'table' => 'password_resets',
+            'expire' => 60,
+            'throttle' => 60,
+        ],
         
-        App\Providers\SampleServiceProvider::class,
+        'owners' => [
+            'provider' => 'owners',
+            'table' => 'owner_password_resets',
+            'expire' => 60,
+            'throttle' => 60,
+        ],
+
+        'admin' => [
+            'provider' => 'admin',
+            'table' => 'admin_password_resets',
+            'expire' => 60,
+            'throttle' => 60,
+        ],
+
+    ],
+    'password_timeout' => 10800,
+];
 ```
 
-app/Http/Controllers/LifeCycleTestController.php
-```php
-class LifeCycleTestController extends Controller
-{
-    public function showServiceProviderTest()
-    {
-        $encrypt = app()->make('encrypter');
-        $password = $encrypt->encrypt('password');
-        $sample = app()->make('serviceProviderTest');
+<br>
 
-        dd($sample, $password, $encrypt->decrypt($password));
+# 43. Middleware/Authenticate
+
+### 5. Middleware設定
+ユーザが未認証時のリダイレクト処理  
+```php
+namespace App\Http\Middleware;
+
+use Illuminate\Auth\Middleware\Authenticate as Middleware;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
+
+class Authenticate extends Middleware
+{
+    protected $user_route = 'user.login';
+    protected $owner_route = 'owner.login';
+    protected $admin_route = 'admin.login';
+
+    protected function redirectTo(Request $request): ?string
+    {
+        // return $request->expectsJson() ? null : route('login');
+        if (! $request->expectsJson()) {
+            if(Route::is('owner.*')){
+                return route($this->owner_route);
+            } elseif(Route::is('admin.*')){
+                return route($this->admin_route);
+            } else {
+                return route($this->user_route);
+            }
+        }
     }
+}
+
+```
+
+<br>
+
+# 44. Middleware/RedirectAuthenticated
+
+ログイン済みユーザーがアクセスしてきたらRouteserviceProviderにリダイレクト処理  
+ガード設定対象のユーザーか  
+受信リクエストが名前付きルートに一致するか  
+```php
+namespace App\Http\Middleware;
+
+use App\Providers\RouteServiceProvider;
+use Closure;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+
+class RedirectIfAuthenticated
+{
+    private const GUARD_USER = 'users';
+    private const GUARD_OWNER = 'owners';
+    private const GUARD_ADMIN = 'admin';
+
+    public function handle(Request $request, Closure $next, ...$guards)
+    {
+        if(Auth::guard(self::GUARD_USER)->check() && $request->routeIs('user.*')){
+          return redirect(RouteServiceProvider::HOME);
+        }
+
+        if(Auth::guard(self::GUARD_OWNER)->check() && $request->routeIs('owner.*')){
+          return redirect(RouteServiceProvider::OWNER_HOME);
+        }
+
+        if(Auth::guard(self::GUARD_ADMIN)->check() && $request->routeIs('admin.*')){
+          return redirect(RouteServiceProvider::ADMIN_HOME);
+        }
+
+        return $next($request);
+    }
+}
+```
+
+<br>
+
+# 45. リクエストクラス
+
+### 6. リクエストクラス
+App/Http/Requests/Auth/LoginRequest.php  
+
+ログインフォームに入力された値から  
+パスワードを比較し、認証する。  
+
+User, Owner, Admin 3つのフォームがあるので、  
+routeIs() でルート確認しつつ Auth::guard() を追加
+```php
+if($this->routeIs('owner.*')){
+            $guard = 'owners';
+        } elseif($this->routeIs('admin.*')){
+            $guard = 'admin';
+        } else {
+            $guard = 'users';
+        }
+
+Auth::guard($guard)->attempt(以下略)
 ```
