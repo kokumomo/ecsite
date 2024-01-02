@@ -1,17 +1,5 @@
-# 53. シーダー
+<?php
 
-### シーダー作成
-php artisan make:seeder AdminSeeder  
-php artisan make:seeder OwnerSeeder  
-
-database/seeders 直下に生成  
-
-php artisan migrate:refresh --seed  
-
-DBファサードのinsertで連想配列にて追加  
-パスワードがあればHashファサードも使う  
-  
-```php
 namespace Database\Seeders;
 
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
@@ -21,6 +9,9 @@ use Illuminate\Support\Facades\Hash;
 
 class AdminSeeder extends Seeder
 {
+    /**
+     * Run the database seeds.
+     */
     public function run(): void
     {
         DB::table('admins')->insert([
@@ -31,13 +22,3 @@ class AdminSeeder extends Seeder
         ]);
     }
 }
-```
-
-<br>
-
-# 54. データを扱う方法の比較
-
-
-
-![img](public/images/m54.png)
-

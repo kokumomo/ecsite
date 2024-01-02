@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use App\Models\Owner; //Eloquent
+use Illuminate\Support\Facades\DB; //QueryBuilder 
 
 class OwnersController extends Controller
 {
@@ -17,7 +19,15 @@ class OwnersController extends Controller
      */
     public function index()
     {
-        dd('オーナー一覧です');
+        $e_all = Owner::all();
+        $q_get = DB::table('owners')->select('name')->get();
+        $q_first = DB::table('owners')->select('name')->first();
+
+        $c_test = collect([
+            'name' => 'テスト'
+        ]);
+
+        dd($e_all, $q_get, $q_first,  $c_test);
     }
 
     /**
