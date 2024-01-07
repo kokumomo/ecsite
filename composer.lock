@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "c92ed8fbc580587e9b32f3da5c4ae724",
+    "content-hash": "f5cf48a3e47fdc79b3f6a150f79c23e3",
     "packages": [
         {
             "name": "barryvdh/laravel-debugbar",
@@ -6364,27 +6364,27 @@
         },
         {
             "name": "laravel-lang/lang",
-            "version": "13.10.0",
+            "version": "14.1.5",
             "source": {
                 "type": "git",
                 "url": "https://github.com/Laravel-Lang/lang.git",
-                "reference": "bd04d83e6f46c039b326da560f8928dc136dd2b9"
+                "reference": "422cab5cf4490a10cfa3ca2775d075feabfaa9e1"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Laravel-Lang/lang/zipball/bd04d83e6f46c039b326da560f8928dc136dd2b9",
-                "reference": "bd04d83e6f46c039b326da560f8928dc136dd2b9",
+                "url": "https://api.github.com/repos/Laravel-Lang/lang/zipball/422cab5cf4490a10cfa3ca2775d075feabfaa9e1",
+                "reference": "422cab5cf4490a10cfa3ca2775d075feabfaa9e1",
                 "shasum": ""
             },
             "require": {
                 "ext-json": "*",
-                "laravel-lang/publisher": "^14.0 || ^15.0",
+                "laravel-lang/publisher": "^14.0 || ^15.0 || ^16.0",
                 "php": "^8.1"
             },
             "require-dev": {
                 "laravel-lang/status-generator": "^1.19 || ^2.0",
                 "phpunit/phpunit": "^10.0",
-                "symfony/var-dumper": "^6.0"
+                "symfony/var-dumper": "^6.0 || ^7.0"
             },
             "type": "library",
             "extra": {
@@ -6409,7 +6409,7 @@
                     "homepage": "https://github.com/Laravel-Lang"
                 }
             ],
-            "description": "List of 78 languages for Laravel Framework, Laravel Jetstream, Laravel Fortify, Laravel Breeze, Laravel Cashier, Laravel Nova, Laravel Spark and Laravel UI",
+            "description": "List of 126 languages for Laravel Framework, Laravel Jetstream, Laravel Fortify, Laravel Breeze, Laravel Cashier, Laravel Nova, Laravel Spark and Laravel UI",
             "keywords": [
                 "lang",
                 "languages",
@@ -6420,7 +6420,7 @@
                 "issues": "https://github.com/Laravel-Lang/lang/issues",
                 "source": "https://github.com/Laravel-Lang/lang"
             },
-            "time": "2023-11-28T08:34:07+00:00"
+            "time": "2024-01-03T02:03:55+00:00"
         },
         {
             "name": "laravel-lang/locales",

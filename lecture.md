@@ -1,159 +1,143 @@
-# 53. シーダー
+# 57. 一覧画面(tailblocks利用)
 
-### シーダー作成
-php artisan make:seeder AdminSeeder  
-php artisan make:seeder OwnerSeeder  
-
-database/seeders 直下に生成  
-
-php artisan migrate:refresh --seed  
-
-DBファサードのinsertで連想配列にて追加  
-パスワードがあればHashファサードも使う  
-  
 ```php
-namespace Database\Seeders;
+<table>
+    <thead>
+        <tr>
+            <th >名前</th>
+            <th>メールアドレス</th>
+            <th>作成日</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach ($owners as $owner)
+        <tr>
+            <td>{{ $owner->name }}</td>
+            <td>{{ $owner->email }}</td>
+            <td>1{{ $owner->created_at->diffForHumans() }}</td>
+            <td>
+            <input name="plan" type="radio">
+            </td>
+        </tr>
+        @endforeach
+    </tbody>
+</table>
+```
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
-use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\DB;
+<br>
+
+# 5８. Create 新規作成
+
+resources/views/admin/owners/create.blade.php
+
+<br>
+
+# 59. Store 保存の解説
+# 60. 保存(簡易バリデーション)
+```php
+<form method="post" action="{{ route('admin.owners.store')}}">
+    @csrf
+    <div class="-m-2">
+        <div class="p-2 w-1/2 mx-auto">
+        <div class="relative">
+            <label for="name">オーナー名</label>
+            <input type="text" id="name" name="name" value="{{ old('name')}}">
+            <x-input-error :messages="$errors->get('name')" class="mt-2" />
+        </div>
+    </div>
+    <div class="p-2 w-1/2 mx-auto">
+        <div class="relative">
+            <label for="email">メールアドレス</label>
+            <input type="email" id="email" name="email" value="{{ old('email')}}">
+            <x-input-error :messages="$errors->get('email')" class="mt-2" />
+        </div>
+    </div>
+        <div class="p-2 w-1/2 mx-auto">
+        <div class="relative">
+            <label for="password">パスワード</label>
+            <input type="password" id="password" name="password">
+            <x-input-error :messages="$errors->get('password')" class="mt-2" />
+        </div>
+    </div>
+    <div class="p-2 w-1/2 mx-auto">
+        <div class="relative">
+            <label for="password_confirmation">パスワード確認</label>
+            <input type="password" id="password_confirmation" name="password_confirmation">
+            <x-input-error :messages="$errors->get('password_confirmation')" class="mt-2" />
+        </div>
+    </div>
+    <div class="p-2 w-full flex justify-around mt-4">
+        <button type="button" onclick="location.href='{{ route('admin.owners.index')}}'">戻る</button>
+        <button type="submit">登録する</button>                        
+    </div>
+</form>
+```
+App/Controllers/Admin/OwnerController.php
+```php
 use Illuminate\Support\Facades\Hash;
 
-class AdminSeeder extends Seeder
-{
-    public function run(): void
+public function store(Request $request)
     {
-        DB::table('admins')->insert([
-            'name' => 'test',
-            'email' => 'test@test.com.com',
-            'password' => Hash::make('password123'),
-            'created_at' => '2024/01/01 11:11:11'
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:owners',
+            'password' => 'required|string|confirmed|min:8',
         ]);
+
+        Owner::create([
+            'name' => $request->name,
+            'email' => $request->email,
+            'password' => Hash::make($request->password),
+        ]);
+
+        return redirect()->route('admin.owners.index');
     }
-}
 ```
 
 <br>
 
-# 54. データを扱う方法の比較
+# 61. フラッシュメッセージ
+英語だとtoaster  
+Sessionを使って一度だけ表示  
 
-App/Http/Controllers/Admin/OwnersController.php
+色々なやり方がある
+Controller側  
+1.session()->flash('message', '登録ができました。');  
+2.Session::flash('message','');  
+3.redirect()->with('message','');  
+数秒後に消したい場合はJSも必要  
+
+App/Controllers/Admin/OwnerController.php  
 ```php
-namespace App\Http\Controllers\Admin;
-
-use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use App\Models\Owner; //Eloquent
-use Illuminate\Support\Facades\DB; //QueryBuilder 
-
-class OwnersController extends Controller
-{
-    public function __construct()
+public function store(Request $request)
     {
-        $this->middleware('auth:admin');
+        return redirect()
+        ->route('admin.owners.index')
+        ->with('message', 'オーナー登録を実施しました。');
     }
-
-    public function index()
-    {
-        $e_all = Owner::all();
-        $q_get = DB::table('owners')->select('name')->get();
-        $q_first = DB::table('owners')->select('name')->first();
-
-        $c_test = collect([
-            'name' => 'テスト'
-        ]);
-
-        dd($e_all, $q_get, $q_first,  $c_test);
-    }
-}
 ```
 
-<br>
-
-# 55. Carbon 日付ライブラリ1
-
-PHPのDateTimeクラスを拡張した日付ライブラリ,Laravelに標準搭載  
-
-App/Http/Controllers/Admin/OwnersController.php
+resources/views/components/flash-message.blade.php
 ```php
-use Carbon\Carbon;
+@props(['status' => 'info'])
 
-class OwnersController extends Controller
-{
-    public function __construct()
-    {
-        $this->middleware('auth:admin');
-    }
-   
-    public function index()
-    {
-        $date_now = Carbon::now();
-        $date_parse = Carbon::parse(now());
-        echo $date_now->year;
-        echo $date_parse;
+@php
+if(session('status') === 'info'){$bgColor = 'bg-blue-300';}
+if(session('status') === 'alert'){$bgColor = 'bg-red-500';}
+@endphp
 
-        $e_all = Owner::all();
-        $q_get = DB::table('owners')->select('name', 'created_at')->get();
-        $q_first = DB::table('owners')->select('name')->first();
-
-        $c_test = collect([
-            'name' => 'テスト'
-        ]);
-
-        dd($e_all, $q_get, $q_first,  $c_test);
-}
+@if(session('message'))
+  <div class="{{ $bgColor }} w-1/2 mx-auto p-2 text-white">
+    {{ session('message' )}}
+  </div>
+@endif
 ```
 
-<br>
-
-# 56. Carbon 2
-
-```php
-use Carbon\Carbon;
-
-class OwnersController extends Controller
-{
-    public function __construct()
-    {
-        $this->middleware('auth:admin');
-    }
-   
-    public function index()
-    {
-        $date_now = Carbon::now();
-        $date_parse = Carbon::parse(now());
-        echo $date_now->year;
-        echo $date_parse;
-
-        $e_all = Owner::all();
-        $q_get = DB::table('owners')->select('name', 'created_at')->get();
-
-        return view('admin.owners.index', compact('e_all', 'q_get'));
-    }
-}
-```
 resources/views/admin/owners/index.blade.php
 ```php
-<div class="p-6 text-gray-900">
-    エロクアント
-    @foreach ($e_all as $e_owner)
-        {{ $e_owner->name }}
-        {{ $e_owner->created_at->diffForHumans() }}
-    @endforeach
-    <br>
-    クエリビルダ
-    @foreach ($q_get as $q_owner)
-        {{ $q_owner->name }}
-        {{ Carbon\Carbon::parse($q_owner->created_at)->diffForHumans() }}
-    @endforeach
-</div>
+<x-flash-message status="info" />
 ```
-
-
-
-
-
-
 
 ![img](public/images/m54.png)
 
