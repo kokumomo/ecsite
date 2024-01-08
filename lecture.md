@@ -111,3 +111,35 @@ resources/views/admin/owners/index.blade.php
   }
   </script>
 ```
+
+# 66. ソフトデリート利用例(期限切れオーナー)
+
+### ソフトデリートの使用例
+月額会員・年間会員で更新期限切れ  
+->延滞料金を支払ったら戻せるなど  
+->復旧できる手段を残しておく  
+
+View: admin/expired-owners.blade.php  
+
+注意：データとしては残るので同じメールアドレスで新規登録できない。  
+->復旧方法などの案内が別途必要  
+
+routes/admin.php
+```php
+Route::prefix('expired-owners')->
+    middleware('auth:admin')->group(function(){
+        Route::get('index', [OwnersController::class, 'expiredOwnerIndex'])->name('expired-owners.index');
+        Route::post('destroy/{owner}', [OwnersController::class, 'expiredOwnerDestroy'])->name('expired-owners.destroy');
+});
+```
+
+App/Controllers/Admin/OwnerController.php
+public function expiredOwnerIndex(){
+        $expiredOwners = Owner::onlyTrashed()->get();
+        return view('admin.expired-owners', compact('expiredOwners'));
+    }
+    
+    public function expiredOwnerDestroy($id){
+        Owner::onlyTrashed()->findOrFail($id)->forceDelete();
+        return redirect()->route('admin.expired-owners.index'); 
+    }
