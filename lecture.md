@@ -1,112 +1,113 @@
-# 62. Edit 編集
+# 64. ソフトデリート View側
+# 65. ソフトデリート 処理
+
 ![img](public/images/restful.png)
 
-App/Controllers/Admin/OwnerController.php
-```php
-public function index()
-    {
-        // idを追加
-        $owners = Owner::select('id', 'name', 'email', 'created_at')->get();
-        return view('admin.owners.index', compact('owners'));
-    }
+論理削除(ソフトデリート)->復元できる(ゴミ箱)  
+物理削除(デリート)->復元できない  
 
-public function edit(string $id)
-    {
-        $owner = Owner::findOrFail($id);
-        // dd($owner);
-        return view('admin.owners.edit', compact('owner'));
-    }
+database/migrations/create_owners_table.php  
+```php
+$table->softDeletes();
+```
+app/Models/Owner.php
+```php
+use Illuminate\Database\Eloquent\SoftDeletes;
+
+class Owner extends Authenticatable
+{
+    // SoftDeletes追加
+    use HasFactory, SoftDeletes;
+    protected $fillable = [
+        'name',
+        'email',
+        'password',
+    ];
+}
 ```
 
-resources/views/admin/owners/edit.blade.php
+App/Controllers/Admin/OwnerController.php
+'status' => 'info'追加  
 ```php
-<x-slot name="header">
-    <h2>オーナー情報編集</h2>
-</x-slot>
-<h1>オーナー情報編集</h1>
-<form method="post" action="{{ route('admin.owners.update', ['owner' => $owner->id])}}">
-    @method('PUT')
-    @csrf
-    <label>オーナー名</label>
-    <input type="text" id="name" name="name" value="{{ $owner->name }}">
-    <x-input-error :messages="$errors->get('name')" class="mt-2" />
+public function store(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:owners',
+            'password' => 'required|string|confirmed|min:8',
+        ]);
 
+        Owner::create([
+            'name' => $request->name,
+            'email' => $request->email,
+            'password' => Hash::make($request->password),
+        ]);
 
-    <div class="relative">
-        <label>メールアドレス</label>
-        <input type="email" id="email" name="email"  value="{{ $owner->email }}">
-        <x-input-error :messages="$errors->get('email')" class="mt-2" />
-    </div>
+        return redirect()
+        ->route('admin.owners.index')
+        ->with(['message' => 'オーナー登録を実施しました。',
+        'status' => 'info']);
+    }
 
-    <div class="relative">
-        <label>パスワード</label>
-        <input type="password" id="password" name="password">
-        <x-input-error :messages="$errors->get('password')" class="mt-2" />
-    </div>
+public function update(Request $request, $id)
+{
+    $owner = Owner::findOrFail($id);
+    $owner->name = $request->name;
+    $owner->email = $request->email;
+    $owner->password = Hash::make($request->password);
+    $owner->save();
 
-    <div class="relative">
-        <label>パスワード確認</label>
-        <input type="password" id="password_confirmation" name="password_confirmation">
-        <x-input-error :messages="$errors->get('password_confirmation')" class="mt-2" />
-    </div>
-    <div class="p-2 w-full flex justify-around mt-4">
-    <button type="button" onclick="location.href='{{ route('admin.owners.index')}}'">戻る</button>
-    <button type="submit">更新する</button>                        
-</form>
+    return redirect()
+    ->route('admin.owners.index')
+    ->with(['message' => 'オーナー情報を更新しました。',
+    'status' => 'info']);
+}
+
+public function destroy(string $id)
+{
+    // dd('削除処理');
+    Owner::findOrFail($id)->delete(); //ソフトデリート
+
+    return redirect()
+    ->route('admin.owners.index')
+    ->with(['message' => 'オーナー情報を削除しました。',
+    'status' => 'alert']);
+}
+```
+resources/views/components/flash-message.blade.php
+session('status')に変更  
+```php
+@props(['status' => 'info'])
+
+@php
+if(session('status') === 'info'){$bgColor = 'bg-blue-300';}
+if(session('status') === 'alert'){$bgColor = 'bg-red-500';}
+@endphp
+
+@if(session('message'))
+  <div class="{{ $bgColor }} w-1/2 mx-auto p-2 text-white">
+    {{ session('message' )}}
+  </div>
+@endif
 ```
 
 resources/views/admin/owners/index.blade.php
 ```php
-<x-slot name="header">
-    <h2>オーナー一覧</h2>
-</x-slot>
-<button onclick="location.href='{{ route('admin.owners.create')}}'">新規登録する</button>                        
-<table class="table-auto w-full text-left whitespace-no-wrap">
-    <thead>
-        <tr>
-        <th class="px-4 py-3">名前</th>
-        <th class="px-4 py-3">メールアドレス</th>
-        <th class="px-4 py-3">作成日</th>
-        <th class="px-4 py-3"></th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach ($owners as $owner)
-        <tr>
-            <td class="px-4 py-3">{{ $owner->name }}</td>
-            <td class="px-4 py-3">{{ $owner->email }}</td>
-            <td class="px-4 py-3">{{ $owner->created_at->diffForHumans() }}</td>
-            <td class="px-4 py-3">
-                //名前付きルート 第２引数にidを指定 
-                <button onclick="location.href=
-                '{{ route('admin.owners.edit', ['owner' => $owner->id ])}}'">編集</button>                        
-            </td>
-        </tr>
-        @endforeach
-    </tbody>
-</table>
-```
+<form id="delete_{{$owner->id}}" method="post" action="{{ route('admin.owners.destroy', ['owner' => $owner->id ] )}}">
+    @csrf
+    @method('delete')
+    <td class="px-4 py-3">
+    <a href="#" data-id="{{ $owner->id }}" onclick="deletePost(this)" 
+    class="text-white bg-red-400 border-0 py-2 px-4 focus:outline-none hover:bg-red-500 rounded ">削除</a>                        
+    </td>
+</form>
 
-<br>
-
-# 63. Update 更新
-App/Controllers/Admin/OwnerController.php
-```php
-public function update(Request $request, $id)
-    {
-        $owner = Owner::findOrFail($id);
-        $owner->name = $request->name;
-        $owner->email = $request->email;
-        $owner->password = Hash::make($request->password);
-        $owner->save();
-
-        return redirect()
-        ->route('admin.owners.index')
-        ->with('message', 'オーナー情報を更新しました。');
-    }
-```
-
-resources/views/admin/owners/edit.blade.php
-```php
-@method('PUT')
+<script>
+  function deletePost(e) {
+      'use strict';
+      if (confirm('本当に削除してもいいですか?')) {
+      document.getElementById('delete_' + e.dataset.id).submit();
+      }
+  }
+  </script>
 ```
