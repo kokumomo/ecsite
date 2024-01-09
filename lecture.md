@@ -1,145 +1,69 @@
-# 64. ソフトデリート View側
-# 65. ソフトデリート 処理
-
+# 67. ページネーション
 ![img](public/images/restful.png)
 
-論理削除(ソフトデリート)->復元できる(ゴミ箱)  
-物理削除(デリート)->復元できない  
+database/seeders/OwnerSeeder.phpにデータ追加  
+php artisan migrate:refresh --seed
 
-database/migrations/create_owners_table.php  
+App/Http/Controllers/Admin/OwnerController.php　　
 ```php
-$table->softDeletes();
-```
-app/Models/Owner.php
-```php
-use Illuminate\Database\Eloquent\SoftDeletes;
-
-class Owner extends Authenticatable
-{
-    // SoftDeletes追加
-    use HasFactory, SoftDeletes;
-    protected $fillable = [
-        'name',
-        'email',
-        'password',
-    ];
-}
-```
-
-App/Controllers/Admin/OwnerController.php
-'status' => 'info'追加  
-```php
-public function store(Request $request)
-    {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:owners',
-            'password' => 'required|string|confirmed|min:8',
-        ]);
-
-        Owner::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-        ]);
-
-        return redirect()
-        ->route('admin.owners.index')
-        ->with(['message' => 'オーナー登録を実施しました。',
-        'status' => 'info']);
-    }
-
-public function update(Request $request, $id)
-{
-    $owner = Owner::findOrFail($id);
-    $owner->name = $request->name;
-    $owner->email = $request->email;
-    $owner->password = Hash::make($request->password);
-    $owner->save();
-
-    return redirect()
-    ->route('admin.owners.index')
-    ->with(['message' => 'オーナー情報を更新しました。',
-    'status' => 'info']);
-}
-
-public function destroy(string $id)
-{
-    // dd('削除処理');
-    Owner::findOrFail($id)->delete(); //ソフトデリート
-
-    return redirect()
-    ->route('admin.owners.index')
-    ->with(['message' => 'オーナー情報を削除しました。',
-    'status' => 'alert']);
-}
-```
-resources/views/components/flash-message.blade.php
-session('status')に変更  
-```php
-@props(['status' => 'info'])
-
-@php
-if(session('status') === 'info'){$bgColor = 'bg-blue-300';}
-if(session('status') === 'alert'){$bgColor = 'bg-red-500';}
-@endphp
-
-@if(session('message'))
-  <div class="{{ $bgColor }} w-1/2 mx-auto p-2 text-white">
-    {{ session('message' )}}
-  </div>
-@endif
+$owners = Owner::select('id', 'name', 'email', 'created_at')->paginate(3);
+        return view('admin.owners.index', compact('owners'));
 ```
 
 resources/views/admin/owners/index.blade.php
 ```php
-<form id="delete_{{$owner->id}}" method="post" action="{{ route('admin.owners.destroy', ['owner' => $owner->id ] )}}">
-    @csrf
-    @method('delete')
-    <td class="px-4 py-3">
-    <a href="#" data-id="{{ $owner->id }}" onclick="deletePost(this)" 
-    class="text-white bg-red-400 border-0 py-2 px-4 focus:outline-none hover:bg-red-500 rounded ">削除</a>                        
-    </td>
-</form>
-
-<script>
-  function deletePost(e) {
-      'use strict';
-      if (confirm('本当に削除してもいいですか?')) {
-      document.getElementById('delete_' + e.dataset.id).submit();
-      }
-  }
-  </script>
+{{ $owners->links() }}
 ```
 
-# 66. ソフトデリート利用例(期限切れオーナー)
+### ページネーションの日本語化
+vendorフォルダ内ファイルをコピー　　  
+php artisan vendor:publish --tag=laravel-pagination　　
 
-### ソフトデリートの使用例
-月額会員・年間会員で更新期限切れ  
-->延滞料金を支払ったら戻せるなど  
-->復旧できる手段を残しておく  
-
-View: admin/expired-owners.blade.php  
-
-注意：データとしては残るので同じメールアドレスで新規登録できない。  
-->復旧方法などの案内が別途必要  
-
-routes/admin.php
+resources/views/vendor/pagination/tailwindcss.blade.php
 ```php
-Route::prefix('expired-owners')->
-    middleware('auth:admin')->group(function(){
-        Route::get('index', [OwnersController::class, 'expiredOwnerIndex'])->name('expired-owners.index');
-        Route::post('destroy/{owner}', [OwnersController::class, 'expiredOwnerDestroy'])->name('expired-owners.destroy');
-});
+<p class="text-sm text-gray-700 leading-5">
+    <span class="font-medium">{{ $paginator->total() }}</span>
+    件中
+    @if ($paginator->firstItem())
+        <span class="font-medium">{{ $paginator->firstItem() }}</span>
+        件〜
+        <span class="font-medium">{{ $paginator->lastItem() }}</span>
+    @else
+        {{ $paginator->count() }}
+    @endif
+    件 を表示
+</p>
+```
+<br>
+
+# 68. その他
+
+新規登録はしない、ようこそ画面不要  
+->registration, welcome コメントアウト  
+
+OwnerController::class,showは今回使わない  
+```php
+Route::resource('owners', OwnersController::class)
+->middleware('auth:admin')->except(['show']);
 ```
 
-App/Controllers/Admin/OwnerController.php
-public function expiredOwnerIndex(){
-        $expiredOwners = Owner::onlyTrashed()->get();
-        return view('admin.expired-owners', compact('expiredOwners'));
-    }
-    
-    public function expiredOwnerDestroy($id){
-        Owner::onlyTrashed()->findOrFail($id)->forceDelete();
-        return redirect()->route('admin.expired-owners.index'); 
-    }
+### View側の編集
+レスポンシブ対応  
+x方向(横方向)のmargin,paddingにmd:をつける(768px以上、タブレット)  
+resources/views/layouts/admin-navigation.blade.php
+```php
+<!-- Navigation Links -->
+<div class="hidden space-x-8 sm:-my-px sm:ml-10 sm:flex">
+    <x-nav-link :href="route('admin.dashboard')" :active="request()->routeIs('admin.dashboard')">
+        {{ __('Dashboard') }}
+    </x-nav-link>
+    <x-nav-link :href="route('admin.owners.index')" :active="request()->routeIs('admin.owners.index')">
+        オーナー管理
+    </x-nav-link>
+    <x-nav-link :href="route('admin.expired-owners.index')" :active="request()->routeIs('admin.expired-owners.index')">
+        期限切れオーナー一覧
+    </x-nav-link>             
+</div>
+```
+
+resources/views/admin/owners/index.blade.php
