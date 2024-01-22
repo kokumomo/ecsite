@@ -1,69 +1,136 @@
-# 67. ページネーション
-![img](public/images/restful.png)
+# 70. オーナーの概要
+![img](public/images/owner_er.png)
 
-database/seeders/OwnerSeeder.phpにデータ追加  
-php artisan migrate:refresh --seed
+### オーナーでできること
+オーナープロフィール編集 (管理側と同じ)  
+店舗情報更新(1オーナー 1店舗)  
+画像登録  
+商品登録・・  
+(画像(4枚)、カテゴリ選択(1つ)、在庫設定)   
 
-App/Http/Controllers/Admin/OwnerController.php　　
-```php
-$owners = Owner::select('id', 'name', 'email', 'created_at')->paginate(3);
-        return view('admin.owners.index', compact('owners'));
-```
-
-resources/views/admin/owners/index.blade.php
-```php
-{{ $owners->links() }}
-```
-
-### ページネーションの日本語化
-vendorフォルダ内ファイルをコピー　　  
-php artisan vendor:publish --tag=laravel-pagination　　
-
-resources/views/vendor/pagination/tailwindcss.blade.php
-```php
-<p class="text-sm text-gray-700 leading-5">
-    <span class="font-medium">{{ $paginator->total() }}</span>
-    件中
-    @if ($paginator->firstItem())
-        <span class="font-medium">{{ $paginator->firstItem() }}</span>
-        件〜
-        <span class="font-medium">{{ $paginator->lastItem() }}</span>
-    @else
-        {{ $paginator->count() }}
-    @endif
-    件 を表示
-</p>
-```
 <br>
 
-# 68. その他
+#　71. Shop外部キー制約
+### 目的：　Shopのテーブルを作成,owner_idに外部キー制約をつける
 
-新規登録はしない、ようこそ画面不要  
-->registration, welcome コメントアウト  
+### 外部キー制約(FK)
+データベースレベルで参照整合性を強制  
 
-OwnerController::class,showは今回使わない  
+Shopモデルとマイグレーション作成    
+php artisan make:model Shop -m  
+//紐づくモデル名_id  
+
+database/migrations/create_shops_table.php  
 ```php
-Route::resource('owners', OwnersController::class)
-->middleware('auth:admin')->except(['show']);
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('shops', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('owner_id')->constrained();
+            $table->string('name');
+            $table->text('information');
+            $table->string('filename');
+            $table->boolean('is_selling');
+            $table->timestamps();
+        });
+    }
+}
 ```
 
-### View側の編集
-レスポンシブ対応  
-x方向(横方向)のmargin,paddingにmd:をつける(768px以上、タブレット)  
-resources/views/layouts/admin-navigation.blade.php
+### ダミーデータ Seeder
+php artisan make:seed ShopSeeder  
+
+database/seeders/ShopSeeder.php  
 ```php
-<!-- Navigation Links -->
-<div class="hidden space-x-8 sm:-my-px sm:ml-10 sm:flex">
-    <x-nav-link :href="route('admin.dashboard')" :active="request()->routeIs('admin.dashboard')">
-        {{ __('Dashboard') }}
-    </x-nav-link>
-    <x-nav-link :href="route('admin.owners.index')" :active="request()->routeIs('admin.owners.index')">
-        オーナー管理
-    </x-nav-link>
-    <x-nav-link :href="route('admin.expired-owners.index')" :active="request()->routeIs('admin.expired-owners.index')">
-        期限切れオーナー一覧
-    </x-nav-link>             
-</div>
+namespace Database\Seeders;
+
+use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
+
+class ShopSeeder extends Seeder
+{
+    public function run(): void
+    {
+        DB::table('shops')->insert([
+            [
+                'owner_id' => 1,
+                'name' => 'ここに店名が入ります',
+                'information' => 'ここにお店の情報が入ります',
+                'filename' => '',
+                'is_selling' => true
+            ],
+            [
+                'owner_id' => 2,
+                'name' => 'ここに店名が入ります',
+                'information' => 'ここにお店の情報が入ります',
+                'filename' => '',
+                'is_selling' => true
+            ],
+        ]);
+    }
+}
 ```
 
-resources/views/admin/owners/index.blade.php
+database/seeders/DatabaseSeeder.php  
+外部キー制約がある場合は、  
+事前に必要なデータ(Owner)を設定する  
+```php
+namespace Database\Seeders;
+
+use Illuminate\Database\Seeder;
+
+class DatabaseSeeder extends Seeder
+{
+    public function run(): void
+    {
+        $this->call([
+            AdminSeeder::class,
+            OwnerSeeder::class,
+            ShopSeeder::class,
+        ]);
+    }
+}
+```
+
+<br>
+
+# 72. Shop リレーション　１対１
+
+### 目的：　Eloquentを使ったリレーション設定
+
+app/Models/Owner.php　　
+```php
+use App\Models\Shop;
+public function shop()
+{
+return $this->hasOne(Shop:class);
+}
+```
+
+Shop
+```php
+use App\Models\Owner;
+public function owner()
+{
+return $this->belongsTo(Owner:class);
+}
+```
+
+### Laravel Tinkerで確認
+php artisan tinker  
+
+App\Models\Owner::find(1)->shop;  
+App\Models\Owner::find(1)->shop->name;  
+・・Ownerに紐づくShop情報を取得  
+App\Models\Shop::find(1)->owner;  
+App\Models\Shop::find(1)->owner->email;  
+・・Shopに紐づくOwner情報を取得  
+※public functionで設定していますが  
+動的プロパティとして()が不要なので注意  
