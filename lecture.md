@@ -1,143 +1,175 @@
-# 73. Shop作成 その１(トランザクション・例外・エラー)
+# 76. Shop Index(ルート、コントローラ、ビュー)
 ![img](public/images/owner_er.png)
 
-### 目的：　Shopを作成したい
-一人のオーナーが一つのショップを持つ  
-オーナー登録した際、同時にショップを作る仕様  
-オーナーを登録するのは管理者側
-->管理者側で登録した際にショップも作る  
+### 目的：　Shop 表示までの設定がしたい
+Route  
+Index, edit, updateを作成  
+owner.shops.index など  
+View  
+ロゴサイズ調整, owner-navigation  
+Controler・・ShopControler  
+__construct で$this->middleware(‘auth:owners’):  
+indexメソッド  
+use Iluminate\Support\Facades\Auth;  
+$ownerId = Auth:id(); // 認証されているid  
+$shops = Shop:where(‘owner_id’, $ownerId)->get();  
+// whereは検索条件  
 
-### Shopの作成
-Admin/OwnersControler@store  
-外部キー向けにidを取得  
-$owner = Owner::create();  
-$owner->id;  
-Shop::create で作成する場合は  
-モデル側に $fillableも必要   
-
-app/Models/Shop.php
+routes/owner.php
 ```php
-namespace App\Models;
+use App\Http\Controllers\Owner\ShopController;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
-use App\Models\Owner;
+Route::prefix('shops')->
+    middleware('auth:owners')->group(function(){
+        Route::get('index', [ShopController::class, 'index'])->name('shops.index');
+        Route::get('edit/{shop}', [ShopController::class, 'edit'])->name('shops.edit');
+        Route::post('update/{shop}', [ShopController::class, 'update'])->name('shops.update');
+});
+```
 
-class Shop extends Model
+php artisan make:controller Owner/ShopController  
+
+app/Http/Controllers/Owner/ShopController.php  
+```php
+namespace App\Http\Controllers\Owner;
+
+use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
+use App\Models\Shop;
+use Illuminate\Support\Facades\Auth;
+
+class ShopController extends Controller
 {
-    use HasFactory;
-
-    protected $fillable = [
-        'owner_id',
-        'name',
-        'information',
-        'filename',
-        'is_selling',
-    ];
-    
-    public function owner()
+    public function __construct()
     {
-    return $this->belongsTo(Owner::class);
+        $this->middleware('auth:owners');
+    } 
+
+    public function index()
+    {
+        $ownerId = Auth::id();
+        $shops = Shop::where('owner_id', Auth::id())->get();
+
+        return view('owner.shops.index', 
+        compact('shops'));
+    }
+
+    public function edit($id)
+    {
+        dd(Shop::findOrFail($id));
+    }
+
+    public function update(Request $request, $id)
+    {
+
     }
 }
 ```
 
-### トランザクション
-複数のテーブルに保存する際は  
-トランザクションをかける  
-無名関数内で親の変数を使うには useが必要  
-DB:transaction(function() use ($request){  
-DB:create($requst->name);  
-DB:create($request->owner_id);  
-}, 2) // NG時2回試す  
-
-### 例外 + ログ
-トランザクションでエラー時は例外発生  
-PHP7 から Throwableで例外取得  
-ログは storage/logs 内に保存  
-use Throwable;  
-use Iluminate\Support\Facades\Log;  
-try{  
-トランザクション処理  
-} catch( Throwable $e ){  
-Log:error($e);  
-throw $e;  
-}  
-
-app/Http/Controllers/Admin/OwnersController.php
+resources/views/layouts/owner-navigation.blade.php  
 ```php
-use App\Models\Shop; //追加
-use Throwable; //追加
-use Illuminate\Support\Facades\Log; //追加
+<!-- Navigation Links -->
+<div class="hidden space-x-8 sm:-my-px sm:ml-10 sm:flex">
+    <x-nav-link :href="route('owner.dashboard')" :active="request()->routeIs('owner.dashboard')">
+        {{ __('Dashboard') }}
+    </x-nav-link>
+    <x-nav-link :href="route('owner.shops.index')" :active="request()->routeIs('owner.shops.index')">
+        店舗情報
+    </x-nav-link>
+</div>
 
-public function store(Request $request)
+<!-- Responsive Navigation Menu -->
+<div :class="{'block': open, 'hidden': ! open}" class="hidden sm:hidden">
+    <div class="pt-2 pb-3 space-y-1">
+        <x-responsive-nav-link :href="route('owner.dashboard')" :active="request()->routeIs('owner.dashboard')">
+            {{ __('Dashboard') }}
+        </x-responsive-nav-link>
+        <x-responsive-nav-link :href="route('owner.shops.index')" :active="request()->routeIs('owner.shops.index')">
+            店舗情報
+        </x-responsive-nav-link>
+    </div>
+```
+
+resources/views/owner/shops/index.blade.php  
+```php
+<x-app-layout>
+    <x-slot name="header">
+        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+            {{ __('Dashboard') }}
+        </h2>
+    </x-slot>
+
+    <div class="py-12">
+        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                <div class="p-6 text-gray-900">
+                @foreach ($shops as $shop )
+                {{ $shop->name }}
+                @endforeach
+                </div>
+            </div>
+        </div>
+    </div>
+</x-app-layout>
+
+```
+<br>
+
+# 77. Shop コントローラ　ミドルウェア
+
+### Shop ルートパラメータの注意
+/owner/shops/edit/2/  
+edit, updateなど URLにパラメータを使う場合  
+URLの数値を直接変更すると  
+他のオーナーのShopが見れてしまう・・NG  
+
+### 目的：　ログイン済みオーナーのShop URLでなければ 404を表示
+
+### Shop コントローラミドルウェア
+
+```php
+namespace App\Http\Controllers\Owner;
+
+use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
+use App\Models\Shop;
+use Illuminate\Support\Facades\Auth;
+
+class ShopController extends Controller
+{
+    public function __construct()
     {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:owners',
-            'password' => 'required|string|confirmed|min:8',
-        ]);
+        $this->middleware('auth:owners');
 
-        try{} catch( Throwable $e ){
-            Log:error($e);  
-            throw $e;  
-            }  
+        $this->middleware(function ($request, $next) {
+            // dd($request);
+            // dd($request->route()->parameter('shop')); //文字列
+            // dd(Auth::id()); //数字
 
-        Owner::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-        ]);
+            $id = $request->route()->parameter('shop'); //shopのid取得
+            if(!is_null($id)){ // null判定
+            $shopsOwnerId = Shop::findOrFail($id)->owner->id;
+                $shopId = (int)$shopsOwnerId; // キャスト 文字列→数値に型変換
+                $ownerId = Auth::id(); //認証されているid
+                $shops = Shop::where('owner_id', $ownerId)->get();
 
-        return redirect()
-        ->route('admin.owners.index')
-        ->with(['message' => 'オーナー登録を実施しました。',
-        'status' => 'info']);
-    }
+                if($shopId !== $ownerId){ // 同じでなかったら
+                    abort(404); // 404画面表示
+                }
+            }
+            return $next($request);
+        });
+    } 
+}
 ```
 <br>
 
-#　74. Shop作成　その２
+# 78. カスタムエラーページ
 
-### 目的：　try〜catch構文でOwnerとShopを連携、編集画面に店名を追加
+### 404画面をカスタマイズするなら
 
-app/Http/Controllers/Admin/OwnersController.php
-```php
-try{
-    DB::transaction(function () use($request) {
-        $owner = Owner::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-        ]);
-
-        Shop::create([
-            'owner_id' => $owner->id,
-            'name' => '店名を入力してください',
-            'information' => '',
-            'filename' => '',
-            'is_selling' => true,
-        ]);
-    }, 2);
-} catch( Throwable $e ){
-    Log:error($e);  
-    throw $e;  
-    }  
-```
-<br>
-
-#　75. Shop Delete(カスケード)
-
-### Shopの削除 カスケード
-Oenerを削除したタイミングでShopも削除  
-Owner->Shop と
-外部キー制約を設定しているため
-追加設定が必要。
-
-database/migrations/create_shops_table.php
-```php
-$table->foreignId('owner_id')
-->constrained()
-->onUpdate('cascade')
-->onDelete('cascade');
-```
+Vendorフォルダ内ファイルは  
+更新がかかると上書きされてしまう可能性がある  
+下記コマンドでresources/views/errorsに  
+関連ファイル作成  
+php artisan vendor:publish ̶tag=laravel-errors  
