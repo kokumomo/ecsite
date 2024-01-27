@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Shop;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 
 class ShopController extends Controller
 {
@@ -35,7 +36,9 @@ class ShopController extends Controller
 
     public function index()
     {
-        $ownerId = Auth::id();
+        // Authファサードのidメソッドを使用して認証済みユーザにアクセス
+        // $ownerId = Auth::id();
+        // ログインしているオーナーが作ったShopを取得
         $shops = Shop::where('owner_id', Auth::id())->get();
 
         return view('owner.shops.index', 
@@ -44,11 +47,18 @@ class ShopController extends Controller
 
     public function edit($id)
     {
-        dd(Shop::findOrFail($id));
+        $shop = Shop::findOrFail($id);
+        // dd(Shop::findOrFail($id));
+        return view('owner.shops.edit', compact('shop'));
     }
 
     public function update(Request $request, $id)
     {
+        $imageFile = $request->image;
+        if(!is_null($imageFile) && $imageFile->isValid() ){
+            Storage::putFile('public/shops', $imageFile);
+        }
 
+        return redirect()->route('owner.shops.index');
     }
 }
