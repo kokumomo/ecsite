@@ -25,11 +25,11 @@ use App\Http\Controllers\ProfileController;
 */
 
 Route::get('/', function () {
-    return view('welcome');
+    return view('owner.welcome');
 });
 
 Route::get('/dashboard', function () {
-    return view('dashboard');
+    return view('owner.dashboard');
 })->middleware(['auth:owners', 'verified'])->name('dashboard');
 
 
