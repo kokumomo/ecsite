@@ -1,48 +1,3 @@
-# 57. 一覧画面(tailblocks利用)
-
-### 管理者の一覧画面を整えたい
-resources/views/admin/owners/index.blade.php
-```php
-<table>
-    <thead>
-        <tr>
-            <th >名前</th>
-            <th>メールアドレス</th>
-            <th>作成日</th>
-            <th></th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach ($owners as $owner)
-        <tr>
-            <td>{{ $owner->name }}</td>
-            <td>{{ $owner->email }}</td>
-            <td>1{{ $owner->created_at->diffForHumans() }}</td>
-            <td>
-            <input name="plan" type="radio">
-            </td>
-        </tr>
-        @endforeach
-    </tbody>
-</table>
-```
-
-<br>
-
-# 5８. Create 新規作成
-
-### 目的：　登録画面を作成、編集
-
-app/Http/Controllers/Admin/OwnersController.php
-```php
-public function create()
-    {
-        return view('admin.owners.create');
-    }
-```
-
-resources/views/admin/owners/create.blade.php
-```php
 <x-app-layout>
   <x-slot name="header">
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
@@ -103,13 +58,3 @@ resources/views/admin/owners/create.blade.php
       </div>
   </div>
 </x-app-layout>
-```
-
-ボタン作成  
-resources/views/admin/owners/index.blade.php
-```php
-<div class="flex justify-end mb-4">
-    <button onclick="location.href='{{ route('admin.owners.create')}}'" 
-    class="text-white bg-indigo-500 border-0 py-2 px-8 focus:outline-none hover:bg-indigo-600 rounded text-lg">新規登録する</button>                        
-</div>
-```
