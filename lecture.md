@@ -1,78 +1,79 @@
-# 51. アプリ名、ロゴ設定
+# 53. シーダー
 
-### アプリ名・ロゴ
-アプリ名・・.envファイル  
-APP_NAME=Kokumomo  
+### シーダー作成
+database/seeders 直下に生成  
+php artisan make:seeder AdminSeeder  
+php artisan make:seeder OwnerSeeder  
 
-Config/app.php内で設定される  
+database/seeders/AdminSeeder.php  
 ```php
- 'name' => env('APP_NAME', 'Laravel'),
+namespace Database\Seeders;
+
+use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+
+class AdminSeeder extends Seeder
+{
+    public function run(): void
+    {
+        // DBファサードのinsertで連想配列にて追加  
+        // パスワードがあればHashファサードも使う  
+        DB::table('admins')->insert([
+            'name' => 'test',
+            'email' => 'test@test.com.com',
+            'password' => Hash::make('password123'),
+            'created_at' => '2024/01/01 11:11:11'
+        ]);
+    }
+}
 ```
 
-ロゴ表示  
-publicフォルダに直接置く・・初期ファイル  
-storageフォルダ・・フォルダ内画像はgitHubにアップしない  
-表側(public)から見れるようにリンク  
-php artisan storage:link  
-public/storage リンクが生成される  
-asset() ヘルパ関数でpublic内のファイルを指定  
-asset(“images/logo.png”) を  
-components/application-logo.blade.php に記載  
-
-resources/views/admin/auth/login.blade.php
+### 追加のシーダ呼び出し
+database/seeders/DatabaseSeeder.php
 ```php
-<x-guest-layout>
-    管理者用
+namespace Database\Seeders;
+
+// use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use Illuminate\Database\Seeder;
+
+class DatabaseSeeder extends Seeder
+{
+    /**
+     * Seed the application's database.
+     */
+    public function run(): void
+    {
+        $this->call([
+            AdminSeeder::class,
+            OwnerSeeder::class,
+        ]);
+    }
+}
 ```
 
-resources/views/layouts/guest.blade.php
-```php
-<div class="w-28">
-    <a href="/">
-        <x-application-logo class="w-20 h-20 fill-current text-gray-500" />
-    </a>
-</div>
-```
-
-resources/views/components/application-logo.blade.php
-```php
-<img src="{{ asset("images/logo.png") }}">
-```
+### シーダの実行
+php artisan migrate:refresh --seed  
+down()を実行後up()を実行  
+php artisan migrate:fresh --seed  
+全テーブル削除してup()を実行  
 
 <br>
 
-# 52. リソースコントローラ
+# 54. データを扱う方法の比較
 
-![img](public/img/resource_controller.png)
+![img](public/img/data_list.png)
 
-CRUDを1行のコードでコントローラに割り当てる  
-
-### URL設計を見ながら
-POSTの場合は画面不要(blade不要)  
-オーナー登録画面・・GETオーナー登録・・POST  
-
-URL/admin/owners  
-action index  
-名前付きルート route('admin.owners.index')  
-Viewファイル(blade) view('admin.owners.index')  
-コントローラ Admin/OwnersController@index  
-
-生成コマンド  
-php artisan make:controller Admin/OwnersController --resource  
-
-### 目的：ナビゲーションタブ「オーナー管理」を追加したい
-ルートとコントローラを作成後ddで確認  
-
-routes/admin.php    
+App/Http/Controllers/Admin/OwnersController.php
 ```php
-use App\Http\Controllers\Admin\OwnersController;
+namespace App\Http\Controllers\Admin;
 
-Route::resource('owners', OwnersController::class)->middleware('auth:admin');
-```
+use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
+use App\Models\Owner; //Eloquent
+use Illuminate\Support\Facades\DB; //QueryBuilder 
 
-
-app/Http/Controllers/Admin/OwnersController.php
-```php
 class OwnersController extends Controller
 {
     public function __construct()
@@ -82,29 +83,118 @@ class OwnersController extends Controller
 
     public function index()
     {
-        dd('ナビゲーションタブの「オーナー管理」をクリックすると表示');
+        $e_all = Owner::all(); //Eloquent
+        $q_get = DB::table('owners')->select('name')->get(); //QueryBuilder 
+        $q_first = DB::table('owners')->select('name')->first();
+
+        $c_test = collect([
+            'name' => 'テスト'
+        ]); //Collection
+
+        dd($e_all, $q_get, $q_first,  $c_test);
     }
 }
 ```
 
-routes/admin.php
+![img](public/img/data_list_anser.png)
+
+<br>
+
+# 55. Carbon 日付ライブラリ1
+
+PHPのDateTimeクラスを拡張した日付ライブラリ,Laravelに標準搭載  
+公式サイト  
+https://carbon.nesbot.com/  
+個人ブログ  
+https://coinbaby8.com/carbon-laravel.html  
+
+エロクアントでデータ取得した際にtimestampはCarbonインスタンスになっている    
+$eloquents->created_at
+
+->diffForHumans()のCarbonメソッドで繋げることができる  
+
+クエリビルダでCarbonを使うならCarbonインスタンスになっていないので  
+parseする必要がある  
+Carbon\Carbon:parse($query->created_at)->diffForHumans()
+
+App/Http/Controllers/Admin/OwnersController.php  
 ```php
-use App\Http\Controllers\Admin\OwnersController;
+use Carbon\Carbon;
+
+class OwnersController extends Controller
+{
+    public function __construct()
+    {
+        $this->middleware('auth:admin');
+    }
+   
+    public function index()
+    {
+        $date_now = Carbon::now();
+        $date_parse = Carbon::parse(now());
+        echo $date_now->year;
+        echo $date_parse;
+
+        $e_all = Owner::all();
+        $q_get = DB::table('owners')->select('name', 'created_at')->get();
+        $q_first = DB::table('owners')->select('name')->first();
+
+        $c_test = collect([
+            'name' => 'テスト'
+        ]);
+
+        dd($e_all, $q_get, $q_first,  $c_test);
+}
 ```
 
-resources/views/layouts/admin-navigation.blade.php
+<br>
+
+# 56. Carbon 2
+
 ```php
-<!-- Navigation Links -->
-<div class="hidden space-x-8 sm:-my-px sm:ml-10 sm:flex">
-    <x-nav-link :href="route('admin.dashboard')" :active="request()->routeIs('admin.dashboard')">
-        {{ __('Dashboard') }}
-    </x-nav-link>
-    <x-nav-link :href="route('admin.owners.index')" :active="request()->routeIs('admin.owners.index')">
-        オーナー管理
-    </x-nav-link>             
+use Carbon\Carbon;
+
+class OwnersController extends Controller
+{
+    public function __construct()
+    {
+        $this->middleware('auth:admin');
+    }
+   
+    public function index()
+    {
+        $date_now = Carbon::now();
+        $date_parse = Carbon::parse(now());
+        echo $date_now->year;
+        echo $date_parse;
+
+        $e_all = Owner::all();
+        $q_get = DB::table('owners')->select('name', 'created_at')->get();
+
+        return view('admin.owners.index', compact('e_all', 'q_get'));
+    }
+}
+```
+resources/views/admin/owners/index.blade.php
+```php
+<div class="p-6 text-gray-900">
+    エロクアント
+    @foreach ($e_all as $e_owner)
+        {{ $e_owner->name }}
+        {{ $e_owner->created_at->diffForHumans() }}
+    @endforeach
+    <br>
+    クエリビルダ
+    @foreach ($q_get as $q_owner)
+        {{ $q_owner->name }}
+        {{ Carbon\Carbon::parse($q_owner->created_at)->diffForHumans() }}
+    @endforeach
 </div>
 ```
 
 
 
-![img](public/img/service_container.png)
+
+
+
+
