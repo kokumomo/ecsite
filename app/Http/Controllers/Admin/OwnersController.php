@@ -31,7 +31,7 @@ class OwnersController extends Controller
 
         // return view('admin.owners.index', compact('e_all', 'q_get'));
 
-        $owners = Owner::select('id', 'name', 'email', 'created_at')->get();
+        $owners = Owner::select('id', 'name', 'email', 'created_at')->paginate(3);
         return view('admin.owners.index', compact('owners'));
     }
 
@@ -114,7 +114,7 @@ class OwnersController extends Controller
         ->with(['message' => 'オーナー情報を削除しました。',
         'status' => 'alert']);
     }
-    
+
     public function expiredOwnerIndex(){
         $expiredOwners = Owner::onlyTrashed()->get();
         return view('admin.expired-owners', compact('expiredOwners'));
