@@ -1,137 +1,217 @@
-# 62. Edit 編集
+# 64. ソフトデリート View側
+
+論理削除(ソフトデリート)->復元できる(ゴミ箱)  
+物理削除(デリート)->復元できない  
+マイグレーション側  
+
+論理削除(ソフトデリート)->復元できる(ゴミ箱)  
+物理削除(デリート)->復元できない  
+```php
+マイグレーション側  
+$table->softDeletes();  
+モデル側  
+use Iluminate\Database\Eloquent\SoftDeletes;  
+モデルのクラス内  
+use SoftDeletes;  
+```
+
+コントローラ側  
+```php
+Owner:findOrFail($id)->delete(); //ソフトデリート  
+Owner:al(); // ソフトデリートしたものは表示されない  
+Owner:onlyTrashed()->get(); //ゴミ箱のみ表示  
+Owner:withTrashed()->get(); //ゴミ箱も含め表示  
+Owner:onlyTrashed()->restore(); //復元  
+Owner:onlyTrashed()->forceDelete(); //完全削除  
+ソフトデリートされているかの確認  
+$owner->trashed()  
+```
+
+### Delete アラート表示(JS)
+```php
+<form id="delete_{{$owner->id}}" method="post"
+action="{{ route('admin.owners.destroy', ['owner' => $owner->id])}}">
+@csrf @method(‘delete’)
+<a href=“#” data-id="{{ $owner->id }}" onclick="deletePost(this)" >削除</a>
+<script>
+function deletePost(e) {
+'use strict';
+if (confirm('本当に削除してもいいですか?')) {
+document.getElementById('delete_' + e.dataset.id).submit();
+}
+}
+</script>
+```
+
+# 65. ソフトデリート 処理
+
 ![img](public/img/restful.png)
 
-ルート情報確認コマンド  
-php artisan route:list | grep admin.  
-Controler側  
-$owner = Owner:findOrFail($id); //idなければ404画面  
-View側/edit  
-{{ $owner->name}}  
+マイグレーション側  
+database/migrations/create_owners_table.php  
+```php
+$table->softDeletes();
+```
 
-View側/index 名前付きルート 第2引数にidを指定  
-route(‘admin.owners.edit’, [ ‘owner’ => $owner->id ]);  
+モデル側  
+app/Models/Owner.php
+```php
+use Illuminate\Database\Eloquent\SoftDeletes;
+
+class Owner extends Authenticatable
+{
+    // SoftDeletes追加
+    use HasFactory, SoftDeletes;
+    protected $fillable = [
+        'name',
+        'email',
+        'password',
+    ];
+}
+```
+JSとdeleteボタン追加  
+resources/views/admin/owners/index.blade.php
+```php
+<form id="delete_{{$owner->id}}" method="post" action="{{ route('admin.owners.destroy', ['owner' => $owner->id ] )}}">
+    @csrf
+    @method('delete')
+    <td class="px-4 py-3">
+    <a href="#" data-id="{{ $owner->id }}" onclick="deletePost(this)" 
+    class="text-white bg-red-400 border-0 py-2 px-4 focus:outline-none hover:bg-red-500 rounded ">削除</a>                        
+    </td>
+</form>
+
+<script>
+  function deletePost(e) {
+      'use strict';
+      if (confirm('本当に削除してもいいですか?')) {
+      document.getElementById('delete_' + e.dataset.id).submit();
+      }
+  }
+  </script>
+```
+
+フラッシュメッセージをsessionに書き換え  
+resources/views/components/flash-message.blade.php
+```php
+@props(['status' => 'info'])
+
+@php
+if(session('status') === 'info'){$bgColor = 'bg-blue-300';}
+if(session('status') === 'alert'){$bgColor = 'bg-red-500';}
+@endphp
+
+@if(session('message'))
+  <div class="{{ $bgColor }} w-1/2 mx-auto p-2 text-white">
+    {{ session('message' )}}
+  </div>
+@endif
+```
 
 App/Controllers/Admin/OwnerController.php
 ```php
-public function index()
-    {
-        // idを追加
-        $owners = Owner::select('id', 'name', 'email', 'created_at')->get();
-        return view('admin.owners.index', compact('owners'));
-    }
 
-public function edit(string $id)
-    {
-        $owner = Owner::findOrFail($id);
-        // dd($owner);
-        return view('admin.owners.edit', compact('owner'));
-    }
+    return redirect()
+    ->with(['message' => 'オーナー登録を実施しました。',
+    'status' => 'info']);
+
+    return redirect()
+    ->route('admin.owners.index')
+    ->with(['message' => 'オーナー情報を更新しました。',
+    'status' => 'info']);
+        
+public function destroy(string $id)
+{
+    Owner::findOrFail($id)->delete(); //ソフトデリート
+
+    return redirect()
+    ->route('admin.owners.index')
+    ->with(['message' => 'オーナー情報を削除しました。',
+    'status' => 'alert']);
+}
 ```
 
-resources/views/admin/owners/edit.blade.php
-```php
-<x-slot name="header">
-    <h2>オーナー情報編集</h2>
-</x-slot>
-<h1>オーナー情報編集</h1>
-// updateで更新して何番目の情報かを入れる必要があるので[]
-<form method="post" action="{{ route('admin.owners.update', ['owner' => $owner->id])}}">
-    @method('PUT')
-    @csrf
-    <label>オーナー名</label>
-    <input type="text" id="name" name="name" value="{{ $owner->name }}">
-    <x-input-error :messages="$errors->get('name')" class="mt-2" />
-
-
-    <div class="relative">
-        <label>メールアドレス</label>
-        <input type="email" id="email" name="email"  value="{{ $owner->email }}">
-        <x-input-error :messages="$errors->get('email')" class="mt-2" />
-    </div>
-
-    <div class="relative">
-        <label>パスワード</label>
-        <input type="password" id="password" name="password">
-        <x-input-error :messages="$errors->get('password')" class="mt-2" />
-    </div>
-
-    <div class="relative">
-        <label>パスワード確認</label>
-        <input type="password" id="password_confirmation" name="password_confirmation">
-        <x-input-error :messages="$errors->get('password_confirmation')" class="mt-2" />
-    </div>
-    <div class="p-2 w-full flex justify-around mt-4">
-    <button type="button" onclick="location.href='{{ route('admin.owners.index')}}'">戻る</button>
-    <button type="submit">更新する</button>                        
-</form>
-```
-
+indexをsessionに書き換え  
 resources/views/admin/owners/index.blade.php
 ```php
-<x-slot name="header">
-    <h2>オーナー一覧</h2>
-</x-slot>
-<button onclick="location.href='{{ route('admin.owners.create')}}'">新規登録する</button>                        
-<table class="table-auto w-full text-left whitespace-no-wrap">
+<x-flash-message status="session('status')" />
+```
+
+
+# 66. ソフトデリート利用例(期限切れオーナー)
+
+### ソフトデリートを使って一削除データを一時的に保存
+月額会員・年間会員で更新期限切れ  
+->延滞料金を支払ったら戻せるなど  
+->復旧できる手段を残しておく  
+
+注意：データとしては残るので同じメールアドレスで新規登録できない。  
+->復旧方法などの案内が別途必要  
+
+ルート  
+routes/admin.php
+```php
+Route::prefix('expired-owners')->
+    middleware('auth:admin')->group(function(){
+        Route::get('index', [OwnersController::class, 'expiredOwnerIndex'])->name('expired-owners.index');
+        Route::post('destroy/{owner}', [OwnersController::class, 'expiredOwnerDestroy'])->name('expired-owners.destroy');
+});
+```
+コントローラ-    
+App/Controllers/Admin/OwnerController.php
+```php
+
+public function expiredOwnerIndex(){
+        $expiredOwners = Owner::onlyTrashed()->get();
+        return view('admin.expired-owners', compact('expiredOwners'));
+    }
+    
+    public function expiredOwnerDestroy($id){
+        Owner::onlyTrashed()->findOrFail($id)->forceDelete();
+        return redirect()->route('admin.expired-owners.index'); 
+    }
+```
+
+ビューの作成  
+resources/views/admin/expired-owners.blade.php
+```php
+<x-app-layout>
+  <x-slot name="header">
+      <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+          期限切れオーナー一覧
+      </h2>
+  </x-slot>
+
+    <table class="table-auto w-full text-left whitespace-no-wrap">
     <thead>
         <tr>
-        <th class="px-4 py-3">名前</th>
-        <th class="px-4 py-3">メールアドレス</th>
-        <th class="px-4 py-3">作成日</th>
-        <th class="px-4 py-3"></th>
-        </tr>
-    </thead>
+        <th class="px-4 py-3 title-font tracking-wider font-medium text-gray-900 text-sm bg-gray-100 rounded-tl rounded-bl">名前</th>
+        <th class="px-4 py-3 title-font tracking-wider font-medium text-gray-900 text-sm bg-gray-100">メールアドレス</th>
+        <th class="px-4 py-3 title-font tracking-wider font-medium text-gray-900 text-sm bg-gray-100">期限が切れた日</th>                            
+        <th class="px-4 py-3 title-font tracking-wider font-medium text-gray-900 text-sm bg-gray-100 rounded-tr rounded-br"></th></thead>
     <tbody>
-        @foreach ($owners as $owner)
+        @foreach ($expiredOwners as $owner)
         <tr>
-            <td class="px-4 py-3">{{ $owner->name }}</td>
-            <td class="px-4 py-3">{{ $owner->email }}</td>
-            <td class="px-4 py-3">{{ $owner->created_at->diffForHumans() }}</td>
+        <td class="px-4 py-3">{{ $owner->name }}</td>
+        <td class="px-4 py-3">{{ $owner->email }}</td>
+        <td class="px-4 py-3">{{ $owner->deleted_at->diffForHumans() }}</td>
+        
+        <form id="delete_{{$owner->id}}" method="post" action="{{ route('admin.expired-owners.destroy', ['owner' => $owner->id ] )}}">
+            @csrf
+        //   @method('delete')
             <td class="px-4 py-3">
-                //名前付きルート 第２引数にidを指定 
-                <button onclick="location.href=
-                '{{ route('admin.owners.edit', ['owner' => $owner->id ])}}'">編集</button>                        
+            <a href="#" data-id="{{ $owner->id }}" onclick="deletePost(this)" class="text-white bg-red-400 border-0 py-2 px-4 focus:outline-none hover:bg-red-500 rounded ">完全に削除</a>                        
             </td>
+        </form>
         </tr>
         @endforeach
     </tbody>
-</table>
+    </table>
 ```
 
-<br>
-
-# 63. Update 更新
-
-Controler側  
+resources/views/layouts/admin-navigation.blade.php
 ```php
-$owner = Owner:findOrFail($id);  
-$owner->name = $request->name;  
-$owner->email = $request->email;  
-$owner->password = Hash:make($request->password);  
-$owner->save();  
-return redirect()->route()->with();  
-```
-
-View側(擬似フォームメソッド)
-@method(‘put’)  
-
-App/Controllers/Admin/OwnerController.php  
-```php
-public function update(Request $request, $id)
-    {
-        $owner = Owner::findOrFail($id);
-        $owner->name = $request->name;
-        $owner->email = $request->email;
-        $owner->password = Hash::make($request->password);
-        $owner->save();
-
-        return redirect()
-        ->route('admin.owners.index')
-        ->with('message', 'オーナー情報を更新しました。');
-    }
-```
-
-resources/views/admin/owners/edit.blade.php
-```php
-@method('PUT')
+ <x-nav-link :href="route('admin.expired-owners.index')" :active="request()->routeIs('admin.owners.index')">
+    期限切れオーナー一覧
+</x-nav-link>
 ```
