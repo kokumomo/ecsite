@@ -25,6 +25,34 @@ class ShopSeeder extends Seeder
                 'filename' => '',
                 'is_selling' => true
             ],
+            [
+                'owner_id' => 3,
+                'name' => 'スターバックスコーヒー',
+                'information' => '沼津市花園町10-15',
+                'filename' => '',
+                'is_selling' => true
+            ],
+            [
+                'owner_id' => 4,
+                'name' => 'コメダ珈琲',
+                'information' => '沼津市鳥谷2-1',
+                'filename' => '',
+                'is_selling' => true
+            ],
+            [
+                'owner_id' => 5,
+                'name' => 'むさしの森コーヒー',
+                'information' => '沼津市上香貫1375',
+                'filename' => '',
+                'is_selling' => true
+            ],
+            [
+                'owner_id' => 6,
+                'name' => 'ドトールコーヒー',
+                'information' => '沼津市中沢田375-3',
+                'filename' => '',
+                'is_selling' => true
+            ],
         ]);
     }
 }
