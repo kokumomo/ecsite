@@ -1,81 +1,73 @@
-# 83. フォームリクエスト
+# 85. Shop Editの残り
 ![img](public/images/owner_er.png)
 
-### 目的1：　バリデーションを作りたい
-### 目的２：　カスタムリクエストを使って同じ処理をまとめたい
+### 目的1：　Edit画面の作成
 
-リクエストクラスを拡張してエラーメッセージを書く  
-php artisan make:request UploadImageRequest  
-App\Http\Requests\UploadImageRequest.php  
-
-
-app/Http/Requests/UploadImageRequest.php
+コンポーネントで切り分け  
+resources/views/components/thumbnail.blade.php  
 ```php
-public function rules()
-    {
-        return [
-            'image'=>'image|mimes:jpg,jpeg,png|max:2048',
-        ];
-    }
-
-    public function messages()
-    {
-    return [
-      'image' => '指定されたファイルが画像ではありません。',
-      'mimes' => '指定された拡張子（jpg/jpeg/png）ではありません。',
-      'max' => 'ファイルサイズは2MB以内にしてください。',
-      ];
-    }
+<div>
+    @if(empty($filename))
+    <img src="{{ asset('images/no_image.jpg')}}">
+    @else
+    <img src="{{ asset('storage/shops/' . $filename)}}">
+    @endif
+</div>
 ```
 
-app/Http/Controllers/Owner/ShopController.php
+resources/views/owner/shops/edit.blade.php  
 ```php
-use App\Http\Requests\UploadImageRequest;
-
-// 引数を$requestからUploadImageRequestにするとバリデーションがかかる
-public update(UploadImageRequest $request, $id)
-{
-}
-```
-
-ビューでエラーメッセージを表示  
-resources/views/owner/shops/edit.blade.php
-```php
-<x-input-error :messages="$errors->get('image')" class="mt-2" />
-
+店名 <input type=“text”>{{ $shop->name}}
+店舗情報 <textarea rows=“10”>{{ $shop->information}}</textarea>
+画像のサムネイル
+<div class=“w-32”>
+  <x-shop-thumbnail />
+</div>
+販売中/停止中
+<input type=“radio” name=“is_seling” value=“1” @if($shop->is_seling = true){ checked } @endif>販売中
+<input type=“radio” name=“is_seling” value=“0” @if($shop->is_seling = false){ checked } @endif>停止中
 ```
 
 <br>
 
-# 84. サービスへの切り離し
+# 86. Shop Updateの残り
 
-### 重複を防ぎ、ファットコントローラを防ぎたい
-
-resources/views/owner/shops/edit.blade.php
-```php
-namespace App\Services;
-
-use Illuminate\Support\Facades\Storage;
-use InterventionImage;
-
-
-class ImageService
-{
-  public static function upload($imageFile, $folderName){
-
-    $fileName = uniqid(rand().'_');
-    $extension = $imageFile->extension();
-    $fileNameToStore = $fileName. '.' . $extension;
-    $resizedImage = InterventionImage::make($imageFile)->resize(1920, 1080)->encode();
-    Storage::put('public/' . $folderName . '/' . $fileNameToStore, $resizedImage );
-    
-    // ファイル名を返してデータベースに保存
-    return $fileNameToStore;
-  }
-}
-```
+### Uploadしたい
 
 app/Http/Controllers/Owner/ShopController.php
+```php
+public function update(UploadImageRequest $request, $id)
+    {
+        $request->validate([
+            'name' => 'required|string|max:50',
+            'information' => 'required|string|max:1000',
+            'is_selling' => 'required',
+        ]);
+
+        $imageFile = $request->image;
+        if(!is_null($imageFile) && $imageFile->isValid() ){
+            
+            $fileNameToStore = ImageService::upload($imageFile, 'shops');
+            }
+
+            $shop = Shop::findOrFail($id);
+            $shop->name = $request->name;
+            $shop->information = $request->information;
+            $shop->is_selling = $request->is_selling;
+            if(!is_null($imageFile) && $imageFile->isValid()){
+                $shop->filename = $fileNameToStore;
+            }
+
+            $shop->save();
+
+            return redirect()
+            ->route('owner.shops.index')
+            ->with(['message' => '店舗情報を更新しました。',　// フラッシュメッセージ
+            'status' => 'info']);
+    }
+```
+
+resources/views/owner/shops/index.blade.php
 ```php
 use App\Services\ImageService;
 
