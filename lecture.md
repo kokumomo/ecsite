@@ -1,82 +1,49 @@
-# 76. Shop Index(ルート、コントローラ、ビュー)
-![img](public/img/owner_er.png)
+# 79. Shop Index画面
+![img](public/images/owner_er.png)
 
-### 目的：　Shop 表示までの設定がしたい
-ルート  
-Index, edit, updateを作成  
-owner.shops.index など  
+### 目的：　Shop Index画面からEdit画面に遷移したい
 
-ビュー    
-resources/views/owner/shops/index.blade.phpを作成    
-resources/views/owner/shops/edit.blade.phpを作成  
-ロゴサイズ調整, owner-navigation  
-
-コントローラー・・ShopControler  
-
+resources/views/owner/shops/index.blade.php
 ```php
-認証をかけたいので  
-__construct  
-$this->middleware(‘auth:owners’):  
+<x-app-layout>
+  <x-slot name="header">
+      <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+          {{ __('Dashboard') }}
+      </h2>
+  </x-slot>
 
-indexで一覧を表示する際に  
-ログインしているownerのidを取得しつつ  
-ownerが作成したshopを表示したい(Auth:id();)
-
-use Iluminate\Support\Facades\Auth;  
-$ownerId = Auth:id(); // 認証されているid  
-$shops = Shop:where(‘owner_id’, $ownerId)->get();  
-// whereは検索条件  
-```
-
-routes/owner.php
-```php
-use App\Http\Controllers\Owner\ShopController;
-
-Route::prefix('shops')->
-    middleware('auth:owners')->group(function(){
-        Route::get('index', [ShopController::class, 'index'])->name('shops.index');
-        Route::get('edit/{shop}', [ShopController::class, 'edit'])->name('shops.edit');
-        Route::post('update/{shop}', [ShopController::class, 'update'])->name('shops.update');
-});
-```
-
-php artisan make:controller Owner/ShopController  
-
-app/Http/Controllers/Owner/ShopController.php  
-```php
-namespace App\Http\Controllers\Owner;
-
-use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use App\Models\Shop;
-use Illuminate\Support\Facades\Auth;
-
-class ShopController extends Controller
-{
-    public function __construct()
-    {
-        $this->middleware('auth:owners');
-    } 
-
-    public function index()
-    {
-        $ownerId = Auth::id();
-        $shops = Shop::where('owner_id', Auth::id())->get();
-
-        return view('owner.shops.index', 
-        compact('shops'));
-    }
-
-    public function edit($id)
-    {
-        dd(Shop::findOrFail($id));
-    }
-
-    public function update(Request $request, $id)
-    {
-
-    }
-}
+  <div class="py-12">
+      <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+          <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+              <div class="p-6 bg-white border-b border-gray-200">
+                  @foreach ($shops as $shop )
+                    <div class="w-1/2 p-4">
+                    <a href="{{ route('owner.shops.edit', ['shop' => $shop->id ])}}">  
+                    <div class="border rounded-md p-4">
+                      <div class="mb-4">
+                      @if($shop->is_selling)
+                        <span class="border p-2 rounded-md bg-blue-400 text-white">販売中</span>
+                      @else
+                      <span class="border p-2 rounded-md bg-red-400 text-white">停止中</span>
+                      @endif  
+                      </div>
+                      <div class="text-xl">{{ $shop->name }}</div>
+                      <div>
+                          @if(empty($shop->filename))
+                            <img src="{{ asset('images/no_image.jpg')}}">
+                          @else
+                            <img src="{{ asset('storage/shops/' . $shop->filename)}}">
+                          @endif
+                      </div>
+                    </div>
+                    </a>
+                    </div>
+                  @endforeach
+              </div>
+          </div>
+      </div>
+  </div>
+</x-app-layout>
 ```
 
 resources/views/layouts/owner-navigation.blade.php  
@@ -124,65 +91,104 @@ resources/views/owner/shops/index.blade.php
         </div>
     </div>
 </x-app-layout>
+
 ```
 <br>
 
-# 77. Shop コントローラ　ミドルウェア
+# 80. Shop画像アップロード
 
-### Shop ルートパラメータの注意
-/owner/shops/edit/2/  
-edit, updateなど URLにパラメータを使う場合  
-URLの数値を直接変更すると  
-他のオーナーのShopが見れてしまう・・NG  
+### 画像アップロードしたい
+バリデーション->後ほど  
+画像サイズ(今回は1920px x 1080px (FulHD))  
+比率は 16:9  
+->ユーザ側でリサイズしてもらう  
+->サーバー側でリサイズする  
+-> Intervention Imageを使う  
+同じファイルは重複しないファイル名に変更して保存  
 
-### 目的：ログイン済みオーナーのShop URLでなければ404表示
-
-### Shop コントローラミドルウェア
-
-database/seeders/ShopSeeder.php
+app/Http/Controllers/Owner/ShopController.php
 ```php
-namespace App\Http\Controllers\Owner;
+use Illuminate\Support\Facades\Storage;
 
-use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use App\Models\Shop;
-use Illuminate\Support\Facades\Auth;
-
-class ShopController extends Controller
-{
-    public function __construct()
+public function edit($id)
     {
-        $this->middleware('auth:owners');
+        $shop = Shop::findOrFail($id);
+        // dd(Shop::findOrFail($id));
+        return view('owner.shops.edit', compact('shop'));
+    }
 
-        $this->middleware(function ($request, $next) {
-            // dd($request);
-            // dd($request->route()->parameter('shop')); //文字列
-            // dd(Auth::id()); //数字
+    public function update(Request $request, $id)
+    {
+        $imageFile = $request->image;
+        if(!is_null($imageFile) && $imageFile->isValid() ){
+            Storage::putFile('public/shops', $imageFile);
+        }
 
-            $id = $request->route()->parameter('shop'); //shopのid取得
-            if(!is_null($id)){ // null判定
-            $shopsOwnerId = Shop::findOrFail($id)->owner->id;
-                $shopId = (int)$shopsOwnerId; // キャスト 文字列→数値に型変換
-                $ownerId = Auth::id(); //認証されているid
-                $shops = Shop::where('owner_id', $ownerId)->get();
-
-                if($shopId !== $ownerId){ // 同じでなかったら
-                    abort(404); // 404画面表示
-                }
-            }
-            return $next($request);
-        });
-    } 
-}
+        return redirect()->route('owner.shops.index');
+    }
 ```
-<br>
 
-# 78. カスタムエラーページ
-
-### 404画面をカスタマイズするなら
-
-Vendorフォルダ内ファイルは  
-更新がかかると上書きされてしまう可能性がある  
-下記コマンドでresources/views/errorsに  
-関連ファイル作成  
-php artisan vendor:publish ̶tag=laravel-errors  
+resources/views/owner/shops/edit.blade.php
+```php
+<x-app-layout>
+  <x-slot name="header">
+      <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+          オーナー登録
+      </h2>
+  </x-slot>
+  <div class="py-12">
+      <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+          <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+              <div class="p-6 bg-white border-b border-gray-200">
+                <section class="text-gray-600 body-font relative">
+                  <div class="container px-5 mx-auto">
+                    <div class="flex flex-col text-center w-full mb-12">
+                      <h1 class="sm:text-3xl text-2xl font-medium title-font mb-4 text-gray-900">オーナー登録</h1>
+                    </div>
+                    <div class="lg:w-1/2 md:w-2/3 mx-auto">
+                        <form method="post" action="{{ route('admin.owners.store')}}">
+                            @csrf
+                            <div class="-m-2">
+                                <div class="p-2 w-1/2 mx-auto">
+                                <div class="relative">
+                                    <label for="name" class="leading-7 text-sm text-gray-600">オーナー名</label>
+                                    <input type="text" id="name" name="name" value="{{ old('name')}}" required class="w-full bg-gray-100 bg-opacity-50 rounded border border-gray-300 focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-200 text-base outline-none text-gray-700 py-1 px-3 leading-8 transition-colors duration-200 ease-in-out">
+                                    <x-input-error :messages="$errors->get('name')" class="mt-2" />
+                                </div>
+                                </div>
+                                <div class="p-2 w-1/2 mx-auto">
+                                <div class="relative">
+                                    <label for="email" class="leading-7 text-sm text-gray-600">メールアドレス</label>
+                                    <input type="email" id="email" name="email" value="{{ old('email')}}" required class="w-full bg-gray-100 bg-opacity-50 rounded border border-gray-300 focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-200 text-base outline-none text-gray-700 py-1 px-3 leading-8 transition-colors duration-200 ease-in-out">
+                                    <x-input-error :messages="$errors->get('email')" class="mt-2" />
+                                </div>
+                                </div>
+                                <div class="p-2 w-1/2 mx-auto">
+                                <div class="relative">
+                                    <label for="password" class="leading-7 text-sm text-gray-600">パスワード</label>
+                                    <input type="password" id="password" name="password" required class="w-full bg-gray-100 bg-opacity-50 rounded border border-gray-300 focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-200 text-base outline-none text-gray-700 py-1 px-3 leading-8 transition-colors duration-200 ease-in-out">
+                                    <x-input-error :messages="$errors->get('password')" class="mt-2" />
+                                </div>
+                                </div>
+                                <div class="p-2 w-1/2 mx-auto">
+                                <div class="relative">
+                                    <label for="password_confirmation" class="leading-7 text-sm text-gray-600">パスワード確認</label>
+                                    <input type="password" id="password_confirmation" name="password_confirmation" required class="w-full bg-gray-100 bg-opacity-50 rounded border border-gray-300 focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-200 text-base outline-none text-gray-700 py-1 px-3 leading-8 transition-colors duration-200 ease-in-out">
+                                    <x-input-error :messages="$errors->get('password_confirmation')" class="mt-2" />
+                                </div>
+                                </div>
+                                <div class="p-2 w-full flex justify-around mt-4">
+                                    <button type="button" onclick="location.href='{{ route('admin.owners.index')}}'" class="bg-gray-200 border-0 py-2 px-8 focus:outline-none hover:bg-gray-400 rounded text-lg">戻る</button>
+                                    <button type="submit" class="text-white bg-indigo-500 border-0 py-2 px-8 focus:outline-none hover:bg-indigo-600 rounded text-lg">登録する</button> 
+                                </div>                       
+                            </div>
+                        </form>
+                    </div>
+                  </div>
+                </section>
+              </div>
+          </div>
+      </div>
+  </div>
+</x-app-layout>
+```
