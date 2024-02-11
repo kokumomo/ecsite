@@ -1,61 +1,90 @@
-# 81. Intervention Image
+# 83. フォームリクエスト
 ![img](public/images/owner_er.png)
 
-### 目的：　画像リサイズしたい
+### 目的1：　バリデーションを作りたい
+### 目的２：　カスタムリクエストを使って同じ処理をまとめたい
 
-PHP 画像ライブラリ  
-http://image.intervention.io/  
-(もし無効になっていたら有効化する php.ini)  
-FileInfo Extension  
-GD 画像ライブラリ  
-バージョン2.7指定(ダウングレードしないと動かない)  
-composer require intervention/image:^2.7
-※間違えたら composer remove intervention/image  
+リクエストクラスを拡張してエラーメッセージを書く  
+php artisan make:request UploadImageRequest  
+App\Http\Requests\UploadImageRequest.php  
 
 
-config/app.php
+app/Http/Requests/UploadImageRequest.php
 ```php
-$providers = [
-Intervention\Image\ImageServiceProvider:class
-];
+public function rules()
+    {
+        return [
+            'image'=>'image|mimes:jpg,jpeg,png|max:2048',
+        ];
+    }
 
-
-// Imageだとバッティングするので変更
-$alias = [
-'InterventionImage' => Intervention\Image\Facades\Image:class
-];
+    public function messages()
+    {
+    return [
+      'image' => '指定されたファイルが画像ではありません。',
+      'mimes' => '指定された拡張子（jpg/jpeg/png）ではありません。',
+      'max' => 'ファイルサイズは2MB以内にしてください。',
+      ];
+    }
 ```
-$request->image; でname属性を指定して画像ファイルを取得  
-isValid() でアップロードができたか判定  
 
-Storage:putFile はFileオブジェクト想定  
-InterventionImageでリサイズすると画像
-(型が変わる)  
-今回は Storage:put で保存  
-(フォルダは自動作成するが、ファイル名は自分で作成、指定)  
-uniqid(rand().’_’); で一意のidをランダムに作成  
-extension(); 拡張子をつけるメソッド  
-$fileName. ‘.’ . $extension; でファイル名と拡張子を繋げる  
-encode()とすると画像として扱いが可  
-
-Storage::put(); で自動的にファイル名をつけてくれるメソッド  
-第１引数で保存したいフォルダ名、第２引数は保存したいファイル名  
-
-app/Http/Controllers/Owner/ShopController.php  
+app/Http/Controllers/Owner/ShopController.php
 ```php
+use App\Http\Requests\UploadImageRequest;
+
+// 引数を$requestからUploadImageRequestにするとバリデーションがかかる
+public update(UploadImageRequest $request, $id)
+{
+}
+```
+
+ビューでエラーメッセージを表示  
+resources/views/owner/shops/edit.blade.php
+```php
+<x-input-error :messages="$errors->get('image')" class="mt-2" />
+
+```
+
+<br>
+
+# 84. サービスへの切り離し
+
+### 重複を防ぎ、ファットコントローラを防ぎたい
+
+resources/views/owner/shops/edit.blade.php
+```php
+namespace App\Services;
+
+use Illuminate\Support\Facades\Storage;
+use InterventionImage;
+
+
+class ImageService
+{
+  public static function upload($imageFile, $folderName){
+
+    $fileName = uniqid(rand().'_');
+    $extension = $imageFile->extension();
+    $fileNameToStore = $fileName. '.' . $extension;
+    $resizedImage = InterventionImage::make($imageFile)->resize(1920, 1080)->encode();
+    Storage::put('public/' . $folderName . '/' . $fileNameToStore, $resizedImage );
+    
+    // ファイル名を返してデータベースに保存
+    return $fileNameToStore;
+  }
+}
+```
+
+app/Http/Controllers/Owner/ShopController.php
+```php
+use App\Services\ImageService;
+
 public function update(UploadImageRequest $request, $id)
     {
         $imageFile = $request->image;
         if(!is_null($imageFile) && $imageFile->isValid() ){
-            // Storage::putFile('public/shops', $imageFile); リサイズ無しの場合
-            $fileName = uniqid(rand().'_');
-            $extension = $imageFile->extension();
-            $fileNameToStore = $fileName. '.' . $extension;
-            $resizedImage = InterventionImage::make($imageFile)->resize(1920, 1080)->encode();
-            // dd($imageFile, $resizedImage);
-
-            Storage::put('public/shops/' . $fileNameToStore, $resizedImage );
-                }
+            $fileNameToStore = ImageService::upload($imageFile, 'shops');
+            }
 
         return redirect()->route('owner.shops.index');
     }
