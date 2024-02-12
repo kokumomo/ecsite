@@ -1,82 +1,67 @@
-# 89. Image Create
+# 91. Image Edit, Update
 ![img](public/images/owner_er.png)
 
-### 画像複数アップロードとバリデーション
+ShopControler@edit, updateを参考に  
+shop の箇所は image に変更  
+リソースコントローラを使っているので  
+updateがputメソッド  
+-> @method(‘put’) をつける  
 
-Shops/edit.blade.phpを参考  
-画像の複数アップロード対応  
-<input type=“file” name=“files[][image]” multiple 略>  
-フォームリクエストのrulesに下記を追加  
-App/Http/Requests/UploadImageRequest.php  
-'files.*.image' => 'required|image|mimes:jpg,jpeg,png|max:2048',  
-
-resources/views/owner/images/create.blade.php  
+resources/views/owner/images/edit.blade.php
 ```php
-<x-app-layout>
-  <x-slot name="header">
-      <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-          {{ __('Dashboard') }}
-      </h2>
-  </x-slot>
-
-  <div class="py-12">
-      <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-          <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-              <div class="p-6 bg-white border-b border-gray-200">
-                <x-input-error :messages="$errors->get('image')" class="mt-2" />
-                <form method="post" action="{{ route('owner.images.store', )}}" enctype="multipart/form-data">
-                    @csrf
-                    <div class="-m-2">
-                      
-                        <div class="p-2 w-1/2 mx-auto">
-                            <div class="relative">
-                            <label for="image" class="leading-7 text-sm text-gray-600">画像</label>
-                            <input type="file" id="image" name="files[][image]" multiple accept=“image/png,image/jpeg,image/jpg” class="w-full bg-gray-100 bg-opacity-50 rounded border border-gray-300 focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-200 text-base outline-none text-gray-700 py-1 px-3 leading-8 transition-colors duration-200 ease-in-out">
-                            </div>
-                        </div>
-                        
-                        <div class="p-2 w-full flex justify-around mt-4">
-                        <button type="button" onclick="location.href='{{ route('owner.images.index')}}'" class="bg-gray-200 border-0 py-2 px-8 focus:outline-none hover:bg-gray-400 rounded text-lg">戻る</button>
-                        <button type="submit" class="text-white bg-indigo-500 border-0 py-2 px-8 focus:outline-none hover:bg-indigo-600 rounded text-lg">登録する</button>        
-                    </div>
-                  </form>
-              </div>
+<form method="post" action="{{ route('owner.images.update', ['image' => $image->id ] )}}" >
+    @csrf
+    @method('put')
+    <div class="-m-2">
+        <div class="p-2 w-1/2 mx-auto">
+            <div class="relative">
+            <label for="title" class="leading-7 text-sm text-gray-600">画像タイトル</label>
+            <input type="text" id="title" name="title" value="{{$image->title}}" class="w-full bg-gray-100 bg-opacity-50 rounded border border-gray-300 focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-200 text-base outline-none text-gray-700 py-1 px-3 leading-8 transition-colors duration-200 ease-in-out">
+            </div>
+        </div>
+        <div class="p-2 w-1/2 mx-auto">
+          <div class="relative">
+            <div class="w-32">
+              <x-thumbnail :filename="$image->filename" type="products" />
+            </div>
           </div>
-      </div>
-  </div>
-</x-app-layout>
+        </div>
+        <div class="p-2 w-full flex justify-around mt-4">
+        <button type="button" onclick="location.href='{{ route('owner.images.index')}}'" class="bg-gray-200 border-0 py-2 px-8 focus:outline-none hover:bg-gray-400 rounded text-lg">戻る</button>
+        <button type="submit" class="text-white bg-indigo-500 border-0 py-2 px-8 focus:outline-none hover:bg-indigo-600 rounded text-lg">更新する</button>        
+    </div>
+  </form>
 ```
+
+
 app/Http/Controllers/Owner/ImageController.php
 ```php
-use App\Http\Requests\UploadImageRequest;
-
- public function create()
+ public function edit(string $id)
     {
-        return view('owner.images.create');
+        $image = Image::findOrFail($id);
+        return view('owner.images.edit', compact('image'));
     }
 
     /**
-     * Store a newly created resource in storage.
+     * Update the specified resource in storage.
      */
-    public function store(UploadImageRequest $request)
+    public function update(Request $request, string $id)
     {
-        $imageFiles = $request->file('files');
-        if(!is_null($imageFiles)){
-            foreach($imageFiles as $imageFile){
-                $fileNameToStore = ImageService::upload($imageFile, 'products');    
-                Image::create([
-                    'owner_id' => Auth::id(),
-                    'filename' => $fileNameToStore  
-                ]);
-            }
-        }
+        $request->validate([
+            'title' => 'string|max:50'
+        ]);
+
+        $image = Image::findOrFail($id);
+        $image->title = $request->title;
+        $image->save();
 
         return redirect()
         ->route('owner.images.index')
-        ->with(['message' => '画像登録を実施しました。',
+        ->with(['message' => '画像情報を更新しました。',
         'status' => 'info']);
     }
 ```
+
 app/Http/Requests/UploadImageRequest.php
 ```php
 public function rules()
@@ -161,3 +146,71 @@ if(is_array($imageFile))
     
     return $fileNameToStore;
 ```
+<br>
+
+# 92. Image destroy
+
+admin/OwnersControler@destroy と  
+admin/owners/index.blade.php を参考に  
+テーブル情報を削除する前に  
+Storageフォルダ内画像ファイルを削除  
+$image = Image:findOrFail($id);  
+$filePath = 'public/products/'. $image->filename;  
+if(Storage:exists($filePath)){  
+Storage:delete($filePath);  
+}  
+削除・リダイレクトは省略  
+
+app/Http/Controllers/Owner/ImageController.php  
+```php
+public function destroy(string $id)
+    {
+        $image = Image::findOrFail($id);
+        $filePath = 'public/products/' . $image->filename;
+
+        if(Storage::exists($filePath)){
+            Storage::delete($filePath);
+        }
+
+        Image::findOrFail($id)->delete(); 
+
+        return redirect()
+        ->route('owner.images.index')
+        ->with(['message' => '画像を削除しました。',
+        'status' => 'alert']);
+    }
+```
+
+app/Http/Controllers/Owner/ImageController.php
+```php
+use Illuminate\Support\Facades\Storage;
+
+public function destroy(string $id)
+    {
+        $image = Image::findOrFail($id);
+        $filePath = 'public/products/' . $image->filename;
+
+        if(Storage::exists($filePath)){
+            Storage::delete($filePath);
+        }
+
+        Image::findOrFail($id)->delete(); 
+
+        return redirect()
+        ->route('owner.images.index')
+        ->with(['message' => '画像を削除しました。',
+        'status' => 'alert']);
+    }
+```
+
+<br>
+
+# 93. Image ダミーデータ
+
+php artisan make:seed ImageSeeder  
+画像はリサイズ・リネーム後 storage/productsフォルダに保存  
+いくつかのファイル名を書き換えつつダミーとして登録  
+sample1.jpg ～ sample6.jpg  
+Storage内ファイルはgitにアップすると消えるので  
+public/images内に保存しつつ  
+README.md に明記しておきます  
