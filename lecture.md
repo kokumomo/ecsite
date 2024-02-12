@@ -1,243 +1,163 @@
-# 87. Image 雛形作成
+# 89. Image Create
 ![img](public/images/owner_er.png)
 
-### Imageのモデル, マイグレーション, コントローラ
-php artisan make:model Image -m  
+### 画像複数アップロードとバリデーション
 
-php artisan make:controller Owner/ImageController --resource
+Shops/edit.blade.phpを参考  
+画像の複数アップロード対応  
+<input type=“file” name=“files[][image]” multiple 略>  
+フォームリクエストのrulesに下記を追加  
+App/Http/Requests/UploadImageRequest.php  
+'files.*.image' => 'required|image|mimes:jpg,jpeg,png|max:2048',  
 
+resources/views/owner/images/create.blade.php  
 ```php
-モデル  
-$filable = [‘owner_id’, ‘filename’];  
+<x-app-layout>
+  <x-slot name="header">
+      <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+          {{ __('Dashboard') }}
+      </h2>
+  </x-slot>
 
-マイグレーション  
-$table->foreignId(‘owner_id’)->constrained()
-->onUpdate('cascade')
-->onDelete('cascade');
-$table->string('filename');
-$table->string(‘title’)->nulable();
-
-ルート
-Route:resource('images', ImageControler:class)
-->middleware('auth:owners')->except('show');
+  <div class="py-12">
+      <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+          <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+              <div class="p-6 bg-white border-b border-gray-200">
+                <x-input-error :messages="$errors->get('image')" class="mt-2" />
+                <form method="post" action="{{ route('owner.images.store', )}}" enctype="multipart/form-data">
+                    @csrf
+                    <div class="-m-2">
+                      
+                        <div class="p-2 w-1/2 mx-auto">
+                            <div class="relative">
+                            <label for="image" class="leading-7 text-sm text-gray-600">画像</label>
+                            <input type="file" id="image" name="files[][image]" multiple accept=“image/png,image/jpeg,image/jpg” class="w-full bg-gray-100 bg-opacity-50 rounded border border-gray-300 focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-200 text-base outline-none text-gray-700 py-1 px-3 leading-8 transition-colors duration-200 ease-in-out">
+                            </div>
+                        </div>
+                        
+                        <div class="p-2 w-full flex justify-around mt-4">
+                        <button type="button" onclick="location.href='{{ route('owner.images.index')}}'" class="bg-gray-200 border-0 py-2 px-8 focus:outline-none hover:bg-gray-400 rounded text-lg">戻る</button>
+                        <button type="submit" class="text-white bg-indigo-500 border-0 py-2 px-8 focus:outline-none hover:bg-indigo-600 rounded text-lg">登録する</button>        
+                    </div>
+                  </form>
+              </div>
+          </div>
+      </div>
+  </div>
+</x-app-layout>
 ```
-
-モデル  
-app/Models/Image.php
+app/Http/Controllers/Owner/ImageController.php
 ```php
-namespace App\Models;
+use App\Http\Requests\UploadImageRequest;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
-use App\Models\Owner;
-
-class Image extends Model
-{
-    use HasFactory;
-
-    protected $fillable = [
-        'owner_id',
-        'filename'
-    ];
-
-    public function owner()
+ public function create()
     {
-        return $this->belongsTo(Owner::class);
+        return view('owner.images.create');
     }
 
-}
-```
-
-app/Models/Owner.php
-```php
-use App\Models\Image;
-
-public function shop()
-{
-return $this->hasOne(Shop::class);
-}
-
-// hasManyで複数を持つ
-public function image()
-{
-    return $this->hasMany(Image::class);
-}
-```
-
-マイグレーション  
-database/migrations/create_images_table.php
-```php
-<?php
-
-use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
-
-class CreateImagesTable extends Migration
-{
-    public function up()
+    /**
+     * Store a newly created resource in storage.
+     */
+    public function store(UploadImageRequest $request)
     {
-        Schema::create('images', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('owner_id')
-            ->constrained()
-            ->onUpdate('cascade')
-            ->onDelete('cascade');
-            $table->string('filename');
-            $table->string('title')->nullable();
-            $table->timestamps();
-        });
-    }
+        $imageFiles = $request->file('files');
+        if(!is_null($imageFiles)){
+            foreach($imageFiles as $imageFile){
+                $fileNameToStore = ImageService::upload($imageFile, 'products');    
+                Image::create([
+                    'owner_id' => Auth::id(),
+                    'filename' => $fileNameToStore  
+                ]);
+            }
+        }
 
-    public function down()
-    {
-        Schema::dropIfExists('images');
+        return redirect()
+        ->route('owner.images.index')
+        ->with(['message' => '画像登録を実施しました。',
+        'status' => 'info']);
     }
-}
 ```
-
-ルート  
-routes/owner.php
+app/Http/Requests/UploadImageRequest.php
 ```php
-use App\Http\Controllers\Owner\ImageController;
-
-Route::resource('images', ImageController::class)
-->middleware('auth:owners')->except(['show']);
+public function rules()
+    {
+        return [
+            'image'=>'image|mimes:jpeg,png,jpg|max:2048',
+            'files.*.image' => 'required|image|mimes:jpg,jpeg,png|max:2048'
+        ];
+    }
 ```
+
 <br>
 
-# 88. Image Index
+# 90. Image Store
 
-コントローラ  
-constructはShopControlerを参考に  
-ログインしているオーナーのみ見ることができる設定  
+ShopControler@updateを参考  
 ```php
-public function index()
-{
-$images = Image::where('owner_id', Auth::id())
-->orderBy('updated_at', ‘desc') // 降順 (小さくなる)
-->paginate(20);
-以下略
+$imageFiles = $request->file(‘files'); //配列でファイルを取得
+if(!is_nul($imageFiles)){
+foreach($imageFiles as $imageFile){ // それぞれ処理
+$fileNameToStore = ImageService:upload($imageFile, 'products');
+Image::create([
+'owner_id' => Auth::id(),
+'filename' => $fileNameToStore
+]);
 }
-```
-ビュー  
-shops/index.blade.phpを参考にコンポーネントをまとめるために変更  
-<x-thumbnail 略 type=“products” />  
+}
 
-components/thumbnail.blade.php
-```php
-@php
-if($type === 'shops'){
-$path = 'storage/shops/';
+if(is_array($imageFile)){
+$file = $imageFile[‘image']; // 配列なので[‘key’] で取得
+} else {
+$file = $imageFile;
 }
-if($type === 'products'){
-$path = 'storage/products/';
-}
-@endphp
-<div>
-@if(empty($filename))
-<img src="{{ asset('images/no_image.jpg')}}">
-@else
-<img src="{{ asset($path . $filename)}}">
-@endif
-</div>
+$fileName = uniqid(rand().'_');
+$extension = $file->extension();
+$fileNameToStore = $fileName. '.' . $extension;
+$resizedImage = InterventionImage::make($file)->resize(1920,1080)->encode();
+Storage:put('public/' . $folderName . '/' . $fileNameToStore,
+$resizedImage );
 ```
 
-コントローラ 
-app/Http/Controllers/Owner/ImageController.php   
+コントローラー  
+app/Http/Controllers/Owner/ImageController.php
 ```php
-namespace App\Http\Controllers\Owner;
+use App\Services\ImageService;
 
-use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use App\Models\Image;
-use Illuminate\Support\Facades\Auth;
-
-class ImageController extends Controller
-{
-    public function __construct()
+public function store(UploadImageRequest $request)
     {
-        $this->middleware('auth:owners');
-
-        $this->middleware(function ($request, $next) {
-
-            $id = $request->route()->parameter('image'); 
-            // null判定
-            if(!is_null($id)){ 
-              // エロクアントモデルはImage
-            $imagesOwnerId = Image::findOrFail($id)->owner->id;
-            // キャストで数字に変更
-                $imageId = (int)$imagesOwnerId; 
-                // 同じでなかったら
-                if($imageId !== Auth::id()){ 
-                    abort(404);
-                }
+        // dd($request);
+        $imageFiles = $request->file('files');
+        if(!is_null($imageFiles)){
+            foreach($imageFiles as $imageFile){
+                $fileNameToStore = ImageService::upload($imageFile, 'products');    
+                Image::create([
+                    'owner_id' => Auth::id(),
+                    'filename' => $fileNameToStore  
+                ]);
             }
-            return $next($request);
-        });
-    } 
+        }
 
-    public function index()
-    {
-        $images = Image::where('owner_id', Auth::id())
-        ->orderBy('updated_at', 'desc')
-        ->paginate(20);
-
-        return view('owner.images.index', 
-        compact('images'));
+        return redirect()
+        ->route('owner.images.index')
+        ->with(['message' => '画像登録を実施しました。',
+        'status' => 'info']);
     }
 ```
 
-ビュー  
-resources/views/owner/images/index.blade.php  
+app/Services/imageService.php
 ```php
-<div class="flex justify-end mb-4">
-  <button onclick="location.href='{{ route('owner.images.create')}}'" 
-  class="text-white bg-indigo-500 border-0 py-2 px-8 focus:outline-none 
-  hover:bg-indigo-600 rounded text-lg">新規登録する</button>                        
-</div> 
-<div class="flex flex-wrap">
-@foreach ($images as $image )
-  <div class="w-1/4 p-2 md:p-4">
-    <a href="{{ route('owner.images.edit', ['image' => $image->id ])}}">  
-      <div class="border rounded-md p-2 md:p-4">
-        <x-thumbnail :filename="$image->filename" type="products" />
-        <div class="text-gray-700">{{ $image->title }}</div>
-      </div>
-    </a>
-  </div>
-@endforeach
-</div>
-{{ $images->links() }}　// ページネーション
-```
+if(is_array($imageFile))
+    {
+      $file = $imageFile['image'];
+    } else {
+      $file = $imageFile;
+    }
 
-コンポーネント  
-resources/views/components/thumbnail.blade.php  
-```php
-// 入ってくるtypeによって保存先を仕分けする
-@php
-if($type === 'shops'){
-  $path = 'storage/shops/';
-}
-if($type === 'products'){
-  $path = 'storage/products/';
-}
-
-@endphp
-
-<div>
-  @if(empty($filename))
-    <img src="{{ asset('images/no_image.jpg')}}">
-  @else
-    <img src="{{ asset($path . $filename)}}">
-  @endif
-</div>
-```
-
-リンク作成  
-resources/views/layouts/owner-navigation.blade.php
-```php
-<x-nav-link :href="route('owner.images.index')" :active="request()->routeIs('owner.images.index')">
-    画像管理
-</x-nav-link>
+    $fileName = uniqid(rand().'_');
+    $extension = $file->extension();
+    $fileNameToStore = $fileName. '.' . $extension;
+    $resizedImage = InterventionImage::make($file)->resize(1920, 1080)->encode();
+    Storage::put('public/' . $folderName . '/' . $fileNameToStore, $resizedImage );
+    
+    return $fileNameToStore;
 ```
