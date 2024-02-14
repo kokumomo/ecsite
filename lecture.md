@@ -1,136 +1,191 @@
-# 94. Category モデル、マイグレーション
+# 96. Productの雛形作成
 ![img](public/images/owner_er.png)
 
-Category モデル  
-php artisan make:model PrimaryCategory -m  
-php artisan make:model SecondaryCategory  
-モデル 1対多のリレーション  
-Primary  
+### Product モデル,マイグレーション
+php artisan make:model Product -m  
 
+Shop.php ・・ hasMany(Product:class)  
+Product.php ・・ belongsTo(Shop:class)  
+Product.php ・・ belongsTo(Image:class)->後ほど  
+Product.php ・・ belongsTo(SecondaryCategory:class)->後ほど  
+
+### コントローラ
+php artisan make:controller Owner/ProductController --resource  
+
+routes/owner.php
 ```php
-Public function secondary()  
+use App\Http\Controllers\Owner\ProductController;
+
+Route::resource('products', ProductController::class)
+->middleware('auth:owners')->except(['show']);
+```
+
+app/Models/Shop.php
+```php
+use App\Models\Product;
+
+public function product()
 {
-return $this->hasMany(SecondaryCategory:class);
+return $this->hasMany(Product::class);
 }
 ```
 
-Secondaryからは belongsTo  
-
-### Category マイグレーション
-1つのファイルに2つ記載  
-ファイル名を create_categories_table.phpに変更  
-クラス名も CreateCategoriesTable  
-Downメソッドは先にsecondaryを削除する  
-(primaryを先に書くと migrate:refresh 時に外部キーエラー発生)  
-
-モデル1  
-app/Models/PrimaryCategory.php
+app/Models/Product.php
 ```php
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Models\SecondaryCategory;
+use App\Models\Shop;
 
-class PrimaryCategory extends Model
+class Product extends Model
 {
     use HasFactory;
 
-    public function secondary()
+    public function shop()
     {
-        return $this->hasMany(SecondaryCategory::class);
-    }
-}
-
-```
-
-モデル2  
-app/Models/SecondaryCategory.php
-```php
-namespace App\Models;
-
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
-use App\Models\PrimaryCategory;
-
-class SecondaryCategory extends Model
-{
-    use HasFactory;
-
-    public function primary()
-    {
-        return $this->belongsTo(PrimaryCategory::class);
+    return $this->belongsTo(Shop::class);
     }
 }
 ```
-マイグレーション  
-database/migrations/create_categories_table.php
+<br>
+
+# 97. Product マイグレーション・シーダー
+
+### Product マイグレーション
+
+外部キー制約  
+親を削除するか, 親を削除したときに合わせて削除するか  
+テーブル名(shops 複数形)とカラム名(shop_id 単数形_id)が一致するか  
+Nullを許容するか  
 ```php
- use Illuminate\Database\Migrations\Migration;
+$table->foreignId(‘shop_id’) // cascadeあり  
+$table->foreignId(‘secondary_category_id’) // cascadeなし  
+$table->foreignId('image1')->nulable()->constrained('images');  
+// null許可、カラム名と違うのでテーブル名を指定  
+```
+
+### Product シーダー
+リレーションができているか確認したいので  
+FKのダミーデータを先に作成  
+
+php artisan make:seed ProductSeeder  
+```php
+DB:table('products')->insert([
+[
+'shop_id' => 1,
+'secondary_category_id' => 1,
+'image1' => 1,
+],
+[
+'shop_id' => 1,
+'secondary_category_id' => 2,
+'image1' => 2,
+] ]);
+```
+
+database/migrations/2024_02_14_070119_create_products_table.php  
+```php
+use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-class CreateCategoriesTable extends Migration
+return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('primary_categories', function (Blueprint $table) {
+        Schema::create('products', function (Blueprint $table) {
             $table->id();
-            $table->string('name');
-            $table->integer('sort_order');
-            $table->timestamps();
-        });
-
-        Schema::create('secondary_categories', function (Blueprint $table) {
-            $table->id();
-            $table->string('name');
-            $table->integer('sort_order');
-            $table->foreignId('primary_category_id')
+            $table->foreignId('shop_id')
+            ->constrained()
+            ->onUpdate('cascade')
+            ->onDelete('cascade');
+            $table->foreignId('secondary_category_id')
             ->constrained();
+            $table->foreignId('image1')
+            ->nullable()
+            ->constrained('images');
             $table->timestamps();
         });
     }
 
-    public function down()
+    public function down(): void
     {
-        Schema::dropIfExists('secondary_categories');
-        Schema::dropIfExists('primary_categories');
+        Schema::dropIfExists('products');
     }
 };
 ```
 
-<br>
-
-# 95. Category ダミーデータ
-
-php artisan make:seed CategorySeeder  
-
-database/seeders/CategorySeeder.php  
+database/seeders/ProductSeeder.php
 ```php
 namespace Database\Seeders;
 
+use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
-class CategorySeeder extends Seeder
+class ProductSeeder extends Seeder
 {
     public function run()
     {
-        DB::table('primary_categories')->insert([
+        DB::table('products')->insert([
             [
-                'name' => 'キッズファッション',
-                'sort_order' => 1,
+                'shop_id' => 1,
+                'secondary_category_id' => 1,
+                'image1' => 1,
             ],
-            ]);
-
-        DB::table('secondary_categories')->insert([
             [
-                'name' => '靴',
-                'sort_order' => 1,
-                'primary_category_id' => 1
+                'shop_id' => 1,
+                'secondary_category_id' => 2,
+                'image1' => 2,
             ],
-            ]);
-        }
+        ]);
+    }
 }
 ```
 
+database/seeders/DatabaseSeeder.php  
+```php
+class DatabaseSeeder extends Seeder
+{
+    public function run(): void
+    {
+        $this->call([
+            ProductSeeder::class,
+        ]);
+    }
+}
+```
+
+<br>
+
+# 98. Product リレーション
+
+メソッド名をモデル名から変える場合は第２引数必要  
+(カラム名と同じメソッドは指定できないので名称変更)  
+第２引数で_id がつかない場合は 第３引数で指定必要  
+Product.php  
+```php
+use App\Models\SecondaryCategory;
+use App\Models\Image;
+
+class Product extends Model
+{
+    use HasFactory;
+
+    public function shop()
+    {
+        return $this->belongsTo(Shop::class);
+    }
+
+    public function category()
+    {
+        return $this->belongsTo(SecondaryCategory::class, 'secondary_category_id');
+    }
+
+    public function imageFirst()
+    {
+        return $this->belongsTo(Image::class, 'image1', 'id');
+    }
+}
+```
