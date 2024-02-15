@@ -1,191 +1,122 @@
-# 96. Productの雛形作成
+# 99. Product Index
 ![img](public/images/owner_er.png)
 
-### Product モデル,マイグレーション
-php artisan make:model Product -m  
+コンストラクタを設定(ImageControlerなどを参考に)  
+Product:findOrFail($id)->shop->owner->id;  
+$products = Owner:findOrFail(Auth:id())->shop-  
+>product; //後ほど修正します  
+owner/images/index.blade.php を参考  
+$images の箇所を $products に変更  
 
-Shop.php ・・ hasMany(Product:class)  
-Product.php ・・ belongsTo(Shop:class)  
-Product.php ・・ belongsTo(Image:class)->後ほど  
-Product.php ・・ belongsTo(SecondaryCategory:class)->後ほど  
-
-### コントローラ
-php artisan make:controller Owner/ProductController --resource  
-
-routes/owner.php
+app/Http/Controllers/Owner/ProductController.php  
 ```php
-use App\Http\Controllers\Owner\ProductController;
+namespace App\Http\Controllers\Owner;
 
-Route::resource('products', ProductController::class)
-->middleware('auth:owners')->except(['show']);
-```
-
-app/Models/Shop.php
-```php
+use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use App\Models\Image;
 use App\Models\Product;
+use App\Models\SecondaryCategory;
+use App\Models\Owner;
 
-public function product()
+class ProductController extends Controller
 {
-return $this->hasMany(Product::class);
-}
-```
-
-app/Models/Product.php
-```php
-namespace App\Models;
-
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
-use App\Models\Shop;
-
-class Product extends Model
-{
-    use HasFactory;
-
-    public function shop()
+    public function __construct()
     {
-    return $this->belongsTo(Shop::class);
-    }
-}
-```
-<br>
+        $this->middleware('auth:owners');
 
-# 97. Product マイグレーション・シーダー
+        $this->middleware(function ($request, $next) {
 
-### Product マイグレーション
-
-外部キー制約  
-親を削除するか, 親を削除したときに合わせて削除するか  
-テーブル名(shops 複数形)とカラム名(shop_id 単数形_id)が一致するか  
-Nullを許容するか  
-```php
-$table->foreignId(‘shop_id’) // cascadeあり  
-$table->foreignId(‘secondary_category_id’) // cascadeなし  
-$table->foreignId('image1')->nulable()->constrained('images');  
-// null許可、カラム名と違うのでテーブル名を指定  
-```
-
-### Product シーダー
-リレーションができているか確認したいので  
-FKのダミーデータを先に作成  
-
-php artisan make:seed ProductSeeder  
-```php
-DB:table('products')->insert([
-[
-'shop_id' => 1,
-'secondary_category_id' => 1,
-'image1' => 1,
-],
-[
-'shop_id' => 1,
-'secondary_category_id' => 2,
-'image1' => 2,
-] ]);
-```
-
-database/migrations/2024_02_14_070119_create_products_table.php  
-```php
-use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
-
-return new class extends Migration
-{
-    public function up(): void
-    {
-        Schema::create('products', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('shop_id')
-            ->constrained()
-            ->onUpdate('cascade')
-            ->onDelete('cascade');
-            $table->foreignId('secondary_category_id')
-            ->constrained();
-            $table->foreignId('image1')
-            ->nullable()
-            ->constrained('images');
-            $table->timestamps();
+            $id = $request->route()->parameter('product'); 
+            if(!is_null($id)){ 
+            $productsOwnerId = Product::findOrFail($id)->shop->owner->id;
+                $productId = (int)$productsOwnerId; 
+                if($productId !== Auth::id()){ 
+                    abort(404);
+                }
+            }
+            return $next($request);
         });
     }
 
-    public function down(): void
+    public function index()
     {
-        Schema::dropIfExists('products');
-    }
-};
-```
+        // EagerLoadingなし
+        //$products = Owner::findOrFail(Auth::id())->shop->product;
+        
+        $ownerInfo = Owner::with('shop.product.imageFirst')
+        ->where('id', Auth::id())->get();
 
-database/seeders/ProductSeeder.php
-```php
-namespace Database\Seeders;
+        // dd($ownerInfo);
+        // foreach($ownerInfo as $owner){
+        // //    dd($owner->shop->product);
+        //     foreach($owner->shop->product as $product){
+        //         dd($product->imageFirst->filename);
+        //     }
+        // }
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
-use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\DB;
-
-class ProductSeeder extends Seeder
-{
-    public function run()
-    {
-        DB::table('products')->insert([
-            [
-                'shop_id' => 1,
-                'secondary_category_id' => 1,
-                'image1' => 1,
-            ],
-            [
-                'shop_id' => 1,
-                'secondary_category_id' => 2,
-                'image1' => 2,
-            ],
-        ]);
+        return view('owner.products.index',
+        compact('ownerInfo'));
     }
 }
 ```
 
-database/seeders/DatabaseSeeder.php  
+resources/views/owner/products/index.blade.php  
 ```php
-class DatabaseSeeder extends Seeder
-{
-    public function run(): void
-    {
-        $this->call([
-            ProductSeeder::class,
-        ]);
-    }
-}
+<div class="p-2 mt-4 flex justify-end w-full">
+    <button onclick="location.href='{{ route('owner.products.create')}}'" class="mb-4 text-white bg-indigo-500 border-0 py-2 px-8 focus:outline-none hover:bg-indigo-600 rounded text-lg">新規登録</button>
+</div>
+<div class="flex flex-wrap">
+    @foreach ($ownerInfo as $owner )
+    @foreach($owner->shop->product as $product)
+    <div class="w-1/4 p-2 md:p-4">
+    <a href="{{ route('owner.products.edit', ['product' => $product->id ])}}">  
+    <div class="border rounded-md p-2 md:p-4">
+        <x-thumbnail :filename="$product->imageFirst->filename" type="products" />
+        <div class="text-gray-700">{{ $product->name }}</div>
+    </div>
+    </a>
+    </div>
+    @endforeach
+    @endforeach
+    </div>
+</div>
 ```
 
+resources/views/layouts/owner-navigation.blade.php
+```php
+<x-nav-link :href="route('owner.products.index')" :active="request()->routeIs('owner.products.index')">
+    商品管理
+</x-nav-link>
+```
 <br>
 
-# 98. Product リレーション
+# 100. Eager Loading
 
-メソッド名をモデル名から変える場合は第２引数必要  
-(カラム名と同じメソッドは指定できないので名称変更)  
-第２引数で_id がつかない場合は 第３引数で指定必要  
-Product.php  
+N + 1問題の対策  
+リレーション先のリレーション情報を取得  
+withメソッド、リレーションをドットでつなぐ  
 ```php
-use App\Models\SecondaryCategory;
-use App\Models\Image;
-
-class Product extends Model
+$ownerInfo = Owner:with(‘shop.product.imageFirst’)
+->where(‘id’, Auth:id())->get();
+foreach($ownerInfo as $owner)
+foreach($owner->shop->product as $product)
 {
-    use HasFactory;
-
-    public function shop()
-    {
-        return $this->belongsTo(Shop::class);
-    }
-
-    public function category()
-    {
-        return $this->belongsTo(SecondaryCategory::class, 'secondary_category_id');
-    }
-
-    public function imageFirst()
-    {
-        return $this->belongsTo(Image::class, 'image1', 'id');
-    }
+dd($product->imageFirst->filename);
 }
+endforeach
 ```
+
+```php
+
+```
+
+```php
+
+```
+
+```php
+
+```
+
