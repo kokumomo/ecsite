@@ -1,122 +1,257 @@
-# 99. Product Index
+# 101. Stock
 ![img](public/images/owner_er.png)
 
-コンストラクタを設定(ImageControlerなどを参考に)  
-Product:findOrFail($id)->shop->owner->id;  
-$products = Owner:findOrFail(Auth:id())->shop-  
->product; //後ほど修正します  
-owner/images/index.blade.php を参考  
-$images の箇所を $products に変更  
+在庫管理・履歴用のテーブル  
+マスターテーブル(参照用), トランザクションテーブル(処理用)  
 
-app/Http/Controllers/Owner/ProductController.php  
+php artisan make:model Stock -m  
+
+Product モデルから hasMany  
+Stockモデル protected $table = ’t_stocks’;  
+マイグレーション  
+Schema:create(’t_stocks', $table->tinyInteger(‘type’);  
+1・・入庫 2・・出庫  
+Upメソッド、downメソッドともにテーブル名変更  
+
+
+app/Models/Product.php
 ```php
-namespace App\Http\Controllers\Owner;
+use App\Models\Stock;
 
-use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use App\Models\Image;
-use App\Models\Product;
-use App\Models\SecondaryCategory;
-use App\Models\Owner;
-
-class ProductController extends Controller
+public function stock()
 {
-    public function __construct()
+    return $this->hasMany(Stock::class);
+}
+```
+
+app/Models/Stock.php
+```php
+protected $table = 't_stocks';
+```
+
+database/migrations/create_stocks_table.php
+```php
+public function up(): void
     {
-        $this->middleware('auth:owners');
-
-        $this->middleware(function ($request, $next) {
-
-            $id = $request->route()->parameter('product'); 
-            if(!is_null($id)){ 
-            $productsOwnerId = Product::findOrFail($id)->shop->owner->id;
-                $productId = (int)$productsOwnerId; 
-                if($productId !== Auth::id()){ 
-                    abort(404);
-                }
-            }
-            return $next($request);
+        Schema::create('t_stocks', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('product_id')
+            ->constrained()
+            ->onUpdate('cascade')
+            ->onDelete('cascade');
+            $table->tinyInteger('type');
+            $table->integer('quantity');
+            $table->timestamps();
         });
     }
 
-    public function index()
+    public function down(): void
     {
-        // EagerLoadingなし
-        //$products = Owner::findOrFail(Auth::id())->shop->product;
-        
-        $ownerInfo = Owner::with('shop.product.imageFirst')
-        ->where('id', Auth::id())->get();
+        Schema::dropIfExists('t_stocks');
+    }
+```
 
-        // dd($ownerInfo);
-        // foreach($ownerInfo as $owner){
-        // //    dd($owner->shop->product);
-        //     foreach($owner->shop->product as $product){
-        //         dd($product->imageFirst->filename);
-        //     }
-        // }
+database/seeders/StockSeeder.php
+```php
+namespace Database\Seeders;
 
-        return view('owner.products.index',
-        compact('ownerInfo'));
+use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
+
+class StockSeeder extends Seeder
+{
+    /**
+     * Run the database seeds.
+     */
+    public function run(): void
+    {
+        DB::table('t_stocks')->insert([
+            [
+                'product_id' => 1,
+                'type' => 1,
+                'quantity' => 5,
+            ],
+            [
+                'product_id' => 1,
+                'type' => 1,
+                'quantity' => -2,
+            ]]);
     }
 }
 ```
 
-resources/views/owner/products/index.blade.php  
-```php
-<div class="p-2 mt-4 flex justify-end w-full">
-    <button onclick="location.href='{{ route('owner.products.create')}}'" class="mb-4 text-white bg-indigo-500 border-0 py-2 px-8 focus:outline-none hover:bg-indigo-600 rounded text-lg">新規登録</button>
-</div>
-<div class="flex flex-wrap">
-    @foreach ($ownerInfo as $owner )
-    @foreach($owner->shop->product as $product)
-    <div class="w-1/4 p-2 md:p-4">
-    <a href="{{ route('owner.products.edit', ['product' => $product->id ])}}">  
-    <div class="border rounded-md p-2 md:p-4">
-        <x-thumbnail :filename="$product->imageFirst->filename" type="products" />
-        <div class="text-gray-700">{{ $product->name }}</div>
-    </div>
-    </a>
-    </div>
-    @endforeach
-    @endforeach
-    </div>
-</div>
-```
-
-resources/views/layouts/owner-navigation.blade.php
-```php
-<x-nav-link :href="route('owner.products.index')" :active="request()->routeIs('owner.products.index')">
-    商品管理
-</x-nav-link>
-```
 <br>
 
-# 100. Eager Loading
+# 102. Product Create
 
-N + 1問題の対策  
-リレーション先のリレーション情報を取得  
-withメソッド、リレーションをドットでつなぐ  
+先に外部キーの項目を設定  
+ProductControler@create  
 ```php
-$ownerInfo = Owner:with(‘shop.product.imageFirst’)
-->where(‘id’, Auth:id())->get();
-foreach($ownerInfo as $owner)
-foreach($owner->shop->product as $product)
-{
-dd($product->imageFirst->filename);
-}
-endforeach
+$shops = Shop:where(‘owner_id’, Auth:id())->select(‘id’, ‘name’)-
+>get();
+$images = Image:where(‘owner_id’, Auth:id())->select(‘id’, ‘title’,
+‘filename’)->orderBy(‘updated_at’, ‘desc’)->get();
+$categories = PrimaryCategory:with(‘secondary’)->get();
+return view(‘owner.products.create’, compact(‘shops’, ‘images’,
+‘categories’));
 ```
 
+owner/shops/edit.blade.php を参考
 ```php
-
+<select name="category">
+@foreach($categories as $category)
+<optgroup label="{{ $category->name }}">
+@foreach($category->secondary as $secondary)
+<option value="{{ $secondary->id}}" >
+{{ $secondary->name }}
+</option>
+@endforeach
+@endforeach
+</select>
 ```
 
+app/Http/Controllers/Owner/ProductController.php  
 ```php
+use App\Models\Shop;
+use App\Models\PrimaryCategory;
 
+
+public function create()
+    {
+        $shops = Shop::where('owner_id', Auth::id())
+        ->select('id', 'name')
+        ->get();
+
+        $images = Image::where('owner_id', Auth::id())
+        ->select('id', 'title', 'filename')
+        ->orderBy('updated_at', 'desc')
+        ->get();
+
+        $categories = PrimaryCategory::with('secondary')
+        ->get();
+
+        return view('owner.products.create', 
+            compact('shops', 'images', 'categories'));
+        
+    }
 ```
 
+resources/views/owner/products/create.blade.php  
 ```php
+<x-app-layout>
+  <x-slot name="header">
+      <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+          {{ __('Dashboard') }}
+      </h2>
+  </x-slot>
 
+  <div class="py-12">
+      <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+          <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+              <div class="p-6 bg-white border-b border-gray-200">
+                <x-auth-validation-errors class="mb-4" :errors="$errors" />  
+                <form method="post" action="{{ route('owner.products.store')}}" >
+                    @csrf
+                    <div class="-m-2">
+                      <div class="p-2 w-1/2 mx-auto">
+                        <div class="relative">
+                          <label for="name" class="leading-7 text-sm text-gray-600">商品名 ※必須</label>
+                          <input type="text" id="name" name="name" value="{{ old('name') }}" required class="w-full bg-gray-100 bg-opacity-50 rounded border border-gray-300 focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-200 text-base outline-none text-gray-700 py-1 px-3 leading-8 transition-colors duration-200 ease-in-out">
+                        </div>
+                      </div>
+                      <div class="p-2 w-1/2 mx-auto">
+                        <div class="relative">
+                          <label for="information" class="leading-7 text-sm text-gray-600">商品情報 ※必須</label>
+                          <textarea id="information" name="information" rows="10" required class="w-full bg-gray-100 bg-opacity-50 rounded border border-gray-300 focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-200 text-base outline-none text-gray-700 py-1 px-3 leading-8 transition-colors duration-200 ease-in-out">{{ old('information') }}</textarea>
+                        </div>
+                      </div>
+                      <div class="p-2 w-1/2 mx-auto">
+                        <div class="relative">
+                          <label for="price" class="leading-7 text-sm text-gray-600">価格 ※必須</label>
+                          <input type="number" id="price" name="price" value="{{ old('price') }}" required class="w-full bg-gray-100 bg-opacity-50 rounded border border-gray-300 focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-200 text-base outline-none text-gray-700 py-1 px-3 leading-8 transition-colors duration-200 ease-in-out">
+                        </div>
+                      </div>
+                      <div class="p-2 w-1/2 mx-auto">
+                        <div class="relative">
+                          <label for="sort_order" class="leading-7 text-sm text-gray-600">表示順</label>
+                          <input type="number" id="sort_order" name="sort_order" value="{{ old('sort_order') }}" class="w-full bg-gray-100 bg-opacity-50 rounded border border-gray-300 focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-200 text-base outline-none text-gray-700 py-1 px-3 leading-8 transition-colors duration-200 ease-in-out">
+                        </div>
+                      </div>
+                      <div class="p-2 w-1/2 mx-auto">
+                        <div class="relative">
+                          <label for="quantity" class="leading-7 text-sm text-gray-600">初期在庫 ※必須</label>
+                          <input type="number" id="quantity" name="quantity" value="{{ old('quantity') }}" required class="w-full bg-gray-100 bg-opacity-50 rounded border border-gray-300 focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-200 text-base outline-none text-gray-700 py-1 px-3 leading-8 transition-colors duration-200 ease-in-out">
+                        </div>
+                      </div>
+                      <div class="p-2 w-1/2 mx-auto">
+                        <div class="relative">
+                          <label for="shop_id" class="leading-7 text-sm text-gray-600">販売する店舗</label>
+                          <select name="shop_id" id="shop_id" class="w-full bg-gray-100 bg-opacity-50 rounded border border-gray-300 focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-200 text-base outline-none text-gray-700 py-1 px-3 leading-8 transition-colors duration-200 ease-in-out">
+                          @foreach ($shops as $shop )
+                          <option value="{{ $shop->id}}" >
+                            {{ $shop->name }}
+                           </option>
+                          @endforeach
+                          </select>
+                        </div>
+                      </div> 
+                      <div class="p-2 w-1/2 mx-auto">
+                        <div class="relative">
+                          <label for="category" class="leading-7 text-sm text-gray-600">カテゴリー</label>
+                          <select name="category" id="category" class="w-full bg-gray-100 bg-opacity-50 rounded border border-gray-300 focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-200 text-base outline-none text-gray-700 py-1 px-3 leading-8 transition-colors duration-200 ease-in-out">
+                            @foreach($categories as $category)
+                             <optgroup label="{{ $category->name }}">
+                              @foreach($category->secondary as $secondary)
+                                <option value="{{ $secondary->id}}" >
+                                 {{ $secondary->name }}
+                                </option>
+                              @endforeach
+                            @endforeach
+                           </select>
+                          
+                        </div>
+                      </div>
+                      <x-select-image :images="$images" name="image1" />
+                      <x-select-image :images="$images" name="image2" />
+                      <x-select-image :images="$images" name="image3" />
+                      <x-select-image :images="$images" name="image4" />
+                      <x-select-image :images="$images" name="image5" />
+                      <div class="p-2 w-1/2 mx-auto">
+                        <div class="relative flex justify-around">
+                          <div><input type="radio" name="is_selling" value="1" class="mr-2" checked>販売中</div>
+                          <div><input type="radio" name="is_selling" value="0" class="mr-2" >停止中</div>
+                        </div>
+                      </div>
+                      <div class="p-2 w-full flex justify-around mt-4">
+                        <button type="button" onclick="location.href='{{ route('owner.products.index')}}'" class="bg-gray-200 border-0 py-2 px-8 focus:outline-none hover:bg-gray-400 rounded text-lg">戻る</button>
+                        <button type="submit" class="text-white bg-indigo-500 border-0 py-2 px-8 focus:outline-none hover:bg-indigo-600 rounded text-lg">登録する</button>                        
+                      </div>
+                    </div>
+                  </form>
+              </div>
+          </div>
+      </div>
+  </div>
+  <script>
+    'use strict'
+    const images = document.querySelectorAll('.image')
+    
+    images.forEach( image =>  {
+      image.addEventListener('click', function(e){
+        const imageName = e.target.dataset.id.substr(0, 6)
+        const imageId = e.target.dataset.id.replace(imageName + '_', '')
+        const imageFile = e.target.dataset.file
+        const imagePath = e.target.dataset.path
+        const modal = e.target.dataset.modal
+        document.getElementById(imageName + '_thumbnail').src = imagePath + '/' + imageFile
+        document.getElementById(imageName + '_hidden').value = imageId
+        MicroModal.close(modal);
+    }, )
+    })  
+
+  </script>
+
+</x-app-layout>
 ```
 
