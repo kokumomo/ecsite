@@ -1,17 +1,12 @@
-# 101. Stock
+# 104. Micromodal.js 画像選択
 ![img](public/images/owner_er.png)
 
-在庫管理・履歴用のテーブル  
-マスターテーブル(参照用), トランザクションテーブル(処理用)  
-
-php artisan make:model Stock -m  
-
-Product モデルから hasMany  
-Stockモデル protected $table = ’t_stocks’;  
-マイグレーション  
-Schema:create(’t_stocks', $table->tinyInteger(‘type’);  
-1・・入庫 2・・出庫  
-Upメソッド、downメソッドともにテーブル名変更  
+シンプル・軽量・VanilaJS  
+https://micromodal.vercel.app/  
+npm instal micromodal  --save  
+HTML/CSSのサンプル  
+https://gist.github.com/ghosh/  
+4f94cf497d7090359a5c9f81caf60699  
 
 
 app/Models/Product.php
