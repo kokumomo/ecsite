@@ -11,9 +11,12 @@ window.axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
 
 import MicroModal from 'micromodal';  // es6 module
 
+
 MicroModal.init({
     disableScroll: true 
 });
+
+import './swiper'; 
 /**
  * Echo exposes an expressive API for subscribing to channels and listening
  * for events that are broadcast by Laravel. Echo and event broadcasting
