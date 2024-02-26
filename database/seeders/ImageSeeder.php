@@ -174,6 +174,12 @@ class ImageSeeder extends Seeder
                 'owner_id' => 4,
                 'filename' => 'dotol_6.jpeg',
                 'title' => null
-            ]]);
+            ],
+            [
+                'owner_id' => 7,
+                'filename' => 'nike_1.jpeg',
+                'title' => null
+            ],
+        ]);
     }
 }

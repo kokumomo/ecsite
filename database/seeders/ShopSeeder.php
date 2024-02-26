@@ -53,6 +53,7 @@ class ShopSeeder extends Seeder
                 'filename' => '',
                 'is_selling' => true
             ],
+            
         ]);
     }
 }
