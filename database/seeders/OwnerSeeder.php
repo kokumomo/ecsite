@@ -16,21 +16,21 @@ class OwnerSeeder extends Seeder
     {
         DB::table('owners')->insert([
             [
-                'name' => 'test1',
-                'email' => 'test@test1.com',
-                'password' => Hash::make('password123'),
+                'name' => 'nike',
+                'email' => 'nike@nikes.com',
+                'password' => Hash::make('Password123'),
                 'created_at' => '2024/01/01 11:11:11'
             ],
             [
-                'name' => 'test2',
-                'email' => 'test@test2.com',
-                'password' => Hash::make('password123'),
+                'name' => '裾野店',
+                'email' => 'sm0509@shimamura.gr.jp',
+                'password' => Hash::make('Password123'),
                 'created_at' => '2024/01/01 11:11:11'
             ],
             [
-                'name' => 'test3',
-                'email' => 'test@test3.com',
-                'password' => Hash::make('password123'),
+                'name' => '大塚店',
+                'email' => 'sm0497@shimamura.gr.jp',
+                'password' => Hash::make('Password123'),
                 'created_at' => '2024/01/01 11:11:11'
             ],
         ]);
