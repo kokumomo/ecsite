@@ -22,14 +22,38 @@ class OwnerSeeder extends Seeder
                 'created_at' => '2024/01/01 11:11:11'
             ],
             [
-                'name' => '裾野店',
-                'email' => 'sm0509@shimamura.gr.jp',
+                'name' => '御殿場店',
+                'email' => 'sm0503@shimamura.gr.jp',
                 'password' => Hash::make('Password123'),
                 'created_at' => '2024/01/01 11:11:11'
             ],
             [
                 'name' => '大塚店',
                 'email' => 'sm0497@shimamura.gr.jp',
+                'password' => Hash::make('Password123'),
+                'created_at' => '2024/01/01 11:11:11'
+            ],
+            [
+                'name' => '学園通り店',
+                'email' => 'sm0507@shimamura.gr.jp',
+                'password' => Hash::make('Password123'),
+                'created_at' => '2024/01/01 11:11:11'
+            ],
+            [
+                'name' => '裾野店',
+                'email' => 'sm0509@shimamura.gr.jp',
+                'password' => Hash::make('Password123'),
+                'created_at' => '2024/01/01 11:11:11'
+            ],
+            [
+                'name' => '西友沼津店',
+                'email' => 'sm0569@shimamura.gr.jp',
+                'password' => Hash::make('Password123'),
+                'created_at' => '2024/01/01 11:11:11'
+            ],
+            [
+                'name' => '谷田店',
+                'email' => 'sm0510@shimamura.gr.jp',
                 'password' => Hash::make('Password123'),
                 'created_at' => '2024/01/01 11:11:11'
             ],
