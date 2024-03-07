@@ -77,7 +77,7 @@ class ShopController extends Controller
 
             return redirect()
             ->route('owner.shops.index')
-            ->with(['message' => '店舗情報を更新しました。', // フラッシュメッセージ
+            ->with(['message' => '掲載情報を更新しました。', // フラッシュメッセージ
             'status' => 'info']);
     }
 }

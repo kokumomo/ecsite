@@ -16,16 +16,16 @@ class ShopSeeder extends Seeder
         DB::table('shops')->insert([
             [
                 'owner_id' => 1,
-                'name' => 'Vaporfly',
+                'name' => 'nike',
                 'information' => 'Catch em if you can. Giving you race-day speed to conquer any distance, the Vaporfly 3 is for the chasers, the racers and the elevated pacers who can not turn down the thrill of the pursuit. We reworked the leader of the super shoe pack and tuned the engine underneath to help you chase personal bests from a 10K to marathon. From elite runners to those new to racing, this versatile road-racing workhorse is for those who see speed as a gateway to more miles and more seemingly uncatchable highs.',
                 'filename' => '',
                 'is_selling' => true
             ],
             [
                 'owner_id' => 2,
-                'name' => 'Zoom fly',
-                'information' => 'Bridge the gap between your weekend training run and race day in a durable design that can be deployed not just at the starting line of your favorite race, but in the days and months after your conquest. It offers comfort and reliability but with a propulsive sensation that will help you feel fast and fresh. That kind of versatility is uncommon in the running arena. But who said you can not have it all?',
-                'filename' => '',
+                'name' => 'コーヒー豆の選び方',
+                'information' => 'コーヒーショップに行くと、色々と情報が多すぎて複雑です。この為、コーヒー豆選びって初心者の方は難しく感じてしまいがちです。そこでこの記事では、コーヒー豆の選び方を基礎から解説しています。',
+                'filename' => 'coffee_main.jpg',
                 'is_selling' => true
             ],
             [

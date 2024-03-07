@@ -22,8 +22,8 @@ class OwnerSeeder extends Seeder
                 'created_at' => '2024/01/01 11:11:11'
             ],
             [
-                'name' => '御殿場店',
-                'email' => 'sm0503@shimamura.gr.jp',
+                'name' => 'coffee',
+                'email' => 'coffee@coffees.com',
                 'password' => Hash::make('Password123'),
                 'created_at' => '2024/01/01 11:11:11'
             ],

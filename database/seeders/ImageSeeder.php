@@ -54,6 +54,12 @@ class ImageSeeder extends Seeder
                 'filename' => 'nike_11.jpeg',
                 'title' => 'null',
             ],
+
+            [
+                'owner_id' => 2,
+                'filename' => 'brazil_logo.jpg',
+                'title' => 'null',
+            ],
             
         ]);
     }
