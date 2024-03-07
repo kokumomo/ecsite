@@ -19,10 +19,10 @@ class Product extends Model
     }
 
     public function category(){
-        belongsTo(SecondaryCategory::class, 'secondary_category_id');
+        return $this->belongsTo(SecondaryCategory::class, 'secondary_category_id');
     }
 
     public function imageFirst(){
-        belongsTo(Image::class, 'image1', 'id');
+        return $this->belongsTo(Image::class, 'image1', 'id');
     }
 }

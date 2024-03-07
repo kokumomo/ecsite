@@ -60,6 +60,11 @@ class ImageSeeder extends Seeder
                 'filename' => 'brazil_logo.jpg',
                 'title' => 'null',
             ],
+            [
+                'owner_id' => 2,
+                'filename' => 'colombia_logo.jpg',
+                'title' => 'null',
+            ],
             
         ]);
     }

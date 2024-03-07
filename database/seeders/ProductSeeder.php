@@ -21,13 +21,13 @@ class ProductSeeder extends Seeder
             ],
             [
                 'shop_id' => 2,
-                'secondary_category_id' => 1,
-                'image1' => 2,
+                'secondary_category_id' => 2,
+                'image1' => 9,
             ],
             [
                 'shop_id' => 2,
                 'secondary_category_id' => 2,
-                'image1' => 2,
+                'image1' => 10,
             ],
            
             
