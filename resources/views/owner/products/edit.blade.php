@@ -47,11 +47,9 @@
                           <div class="w-full bg-gray-100 bg-opacity-50 rounded text-base outline-none text-gray-700 py-1 px-3 leading-8">{{ $quantity }}</div>
                         </div>
                       </div>
-                      <div class="p-2 w-1/2 mx-auto">
-                        <div class="relative flex justify-around">
-                          <div><input type="radio" name="type" value="1" class="mr-2" checked>追加</div>
-                          <div><input type="radio" name="type" value="2" class="mr-2">削減</div>
-                        </div>
+                      <div class="relative flex justify-around">
+                        <div><input type="radio" name="type" value="{{ \Constant::PRODUCT_LIST['add']}}" class="mr-2" checked>追加</div>
+                        <div><input type="radio" name="type" value="{{ \Constant::PRODUCT_LIST['reduce']}}" class="mr-2" >削減</div>
                       </div>
                       <div class="p-2 w-1/2 mx-auto">
                         <div class="relative">
