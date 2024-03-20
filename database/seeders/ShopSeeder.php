@@ -16,9 +16,9 @@ class ShopSeeder extends Seeder
         DB::table('shops')->insert([
             [
                 'owner_id' => 1,
-                'name' => 'nike',
-                'information' => 'Catch em if you can. Giving you race-day speed to conquer any distance, the Vaporfly 3 is for the chasers, the racers and the elevated pacers who can not turn down the thrill of the pursuit. We reworked the leader of the super shoe pack and tuned the engine underneath to help you chase personal bests from a 10K to marathon. From elite runners to those new to racing, this versatile road-racing workhorse is for those who see speed as a gateway to more miles and more seemingly uncatchable highs.',
-                'filename' => '',
+                'name' => '街のコーヒー屋さん',
+                'information' => '世界各地から厳選したコーヒーを調達してきました。ぜひ当店のさまざまなテイストをご堪能ください',
+                'filename' => 'coffee_store.jpg',
                 'is_selling' => true
             ],
             [

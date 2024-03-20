@@ -14,55 +14,61 @@ class ImageSeeder extends Seeder
     public function run(): void
     {
         DB::table('images')->insert([
-            [
-                'owner_id' => 1,
-                'filename' => 'nike_1.jpeg',
-                'title' => 'null',
-            ],
-            [
-                'owner_id' => 1,
-                'filename' => 'nike_2_1.jpeg',
-                'title' => 'null',
-            ],
-            [
-                'owner_id' => 1,
-                'filename' => 'nike_2_2.jpg',
-                'title' => 'null',
-            ],
-            [
-                'owner_id' => 1,
-                'filename' => 'nike_2.jpeg',
-                'title' => 'null',
-            ],
-            [
-                'owner_id' => 1,
-                'filename' => 'nike_5.jpeg',
-                'title' => 'null',
-            ],
-            [
-                'owner_id' => 1,
-                'filename' => 'nike_9.jpeg',
-                'title' => 'null',
-            ],
-            [
-                'owner_id' => 1,
-                'filename' => 'nike_10.jpeg',
-                'title' => 'null',
-            ],
-            [
-                'owner_id' => 1,
-                'filename' => 'nike_11.jpeg',
-                'title' => 'null',
-            ],
+           
 
             [
-                'owner_id' => 2,
-                'filename' => 'brazil_logo.jpg',
+                'owner_id' => 1,
+                'filename' => 'Brazil.png',
                 'title' => 'null',
             ],
             [
-                'owner_id' => 2,
-                'filename' => 'colombia_logo.jpg',
+                'owner_id' => 1,
+                'filename' => 'Colombia.png',
+                'title' => 'null',
+            ],
+            [
+                'owner_id' => 1,
+                'filename' => 'Ethiopia.png',
+                'title' => 'null',
+            ],
+            [
+                'owner_id' => 1,
+                'filename' => 'Guatemala.png',
+                'title' => 'null',
+            ],
+            [
+                'owner_id' => 1,
+                'filename' => 'Indonesia.png',
+                'title' => 'null',
+            ],
+            [
+                'owner_id' => 1,
+                'filename' => 'Jamaica.png',
+                'title' => 'null',
+            ],
+            [
+                'owner_id' => 1,
+                'filename' => 'Tanzania.png',
+                'title' => 'null',
+            ],
+            [
+                'owner_id' => 1,
+                'filename' => 'Yemen.png',
+                'title' => 'null',
+            ],
+            [
+                'owner_id' => 1,
+                'filename' => 'Kenya.png',
+                'title' => 'null',
+            ],
+            [
+                'owner_id' => 1,
+                'filename' => 'Japan.png',
+                'title' => 'null',
+            ],
+            [
+                'owner_id' => 1,
+                'filename' => 'United-States-of-America.png',
                 'title' => 'null',
             ],
             
